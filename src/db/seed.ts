@@ -12,6 +12,7 @@ import {
   type priorityEnum,
   type statusEnum,
 } from './schema'
+import { describeDatabase } from './describe-database'
 
 type Status = (typeof statusEnum.enumValues)[number]
 type Priority = (typeof priorityEnum.enumValues)[number]
@@ -107,6 +108,16 @@ const DAY = 24 * HOUR
 async function seed() {
   const url = process.env.DATABASE_URL_MIGRATE
   if (!url) throw new Error('DATABASE_URL_MIGRATE is not set')
+
+  // El seed BORRA todos los datos antes de insertar. Para que nadie lo corra por
+  // error contra la base equivocada, se muestra el destino y se exige --yes.
+  console.log(`Target database: ${describeDatabase(url)}`)
+  if (!process.argv.includes('--yes')) {
+    console.error(
+      'The seed DELETES all data in that database. To continue run: pnpm db:seed --yes',
+    )
+    process.exit(1)
+  }
 
   const client = postgres(url, { max: 1 })
   const db = drizzle(client, { casing: 'snake_case' })
