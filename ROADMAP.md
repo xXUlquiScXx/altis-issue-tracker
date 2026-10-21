@@ -238,18 +238,18 @@ Preparar BD de prueba: `TEST_DATABASE_URL` apuntando a un Postgres **aislado** (
 
 ### Fase 15 — Despliegue final y verificación E2E (~1 h) [P0]
 - [x] Migraciones en Supabase al día: `pnpm db:status` → 4 de 4 tras la migración `0003` (orden manual; antes 3 de 3), enum `event_type` con 7 valores, `Status: up to date`. Comprobar con `pnpm db:status` (solo lectura: dice a qué base apunta, si las migraciones están al día y si el enum `event_type` tiene todos los valores).
-- [ ] **Seed final** en Supabase, una sola vez y **al terminar todas las verificaciones** (`pnpm db:seed --yes`, borra los datos de prueba y deja el estado limpio para entregar; no repetirlo después de que alguien se registre).
+- [x] **Seed final** en Supabase (hecho: 2 orgs, 6 usuarios, 32 issues, 24 comentarios, 90 eventos; `db:status` 4 de 4 y `up to date`), una sola vez y **al terminar todas las verificaciones** (`pnpm db:seed --yes`, borra los datos de prueba y deja el estado limpio para entregar; no repetirlo después de que alguien se registre).
 - [x] Producción corre el último commit: los archivos publicados en Vercel son idénticos byte a byte a los de `pnpm build` local del mismo commit.
-- [ ] Desplegar rama principal en Vercel y recorrer **el flujo completo en la URL pública**, con las dos orgs:
+- [x] Desplegar rama principal en Vercel y recorrer **el flujo completo en la URL pública**, con las dos orgs:
   - [x] login con las 4 cuentas de prueba (admin y member de Acme y de Beta); cookie `HttpOnly`, `Secure`, `SameSite=Lax`, `Max-Age=7200`; respuesta idéntica para contraseña errónea y correo inexistente
   - [x] sin sesión: las 12 server functions protegidas responden `401`; Origin ausente o ajeno → `403` (protección CSRF); cookie manipulada → `401`
   - [x] admin vs member en el servidor: rechazos `403` (editar issue ajeno o sin asignar, reasignar, borrar, editar/borrar comentario ajeno) sin escribir nada
   - [x] aislamiento Acme/Beta: cada org ve solo lo suyo; leer, editar, borrar o comentar un issue de la otra → `404`
   - [x] filtros, paginación y búsqueda en la lista; usuarios de la org solo con id, nombre y rol; historial en orden cronológico; errores sin detalles internos
-  - [ ] registro de una cuenta nueva (siempre `member`), logout
-  - [ ] CRUD de issues desde la interfaz: crear, editar, borrar
-  - [ ] kanban + optimista + persistencia al recargar (arrastrar de verdad)
-  - [ ] comentarios (publicar, editar, borrar) e historial después de editar
+  - [x] registro de una cuenta nueva (siempre `member`), logout
+  - [x] CRUD de issues desde la interfaz: crear, editar, borrar
+  - [x] kanban + optimista + persistencia al recargar (arrastrar de verdad)
+  - [x] comentarios (publicar, editar, borrar) e historial después de editar
   - [ ] expiración de sesión (la cookie caduca a las 2 h; el token vencido se rechaza con `401`, probado en tests)
   > Las comprobaciones marcadas se hicieron con un script de solo lectura contra la URL pública (56 comprobaciones, 0 fallos). Las pendientes escriben datos o dependen del navegador.
 - [ ] Verificar que los datos persisten entre sesiones y reinicios.
