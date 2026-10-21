@@ -1,6 +1,7 @@
 import { sql } from 'drizzle-orm'
 import {
   check,
+  doublePrecision,
   index,
   pgEnum,
   pgTable,
@@ -53,6 +54,10 @@ export const issues = pgTable(
       .array()
       .notNull()
       .default(sql`'{}'::text[]`),
+    // Orden dentro de la columna del kanban (menor = más arriba). Es un número
+    // con decimales a propósito: para meter una tarjeta entre dos vecinas basta
+    // con promediar sus posiciones, sin reescribir las demás filas.
+    position: doublePrecision().notNull().default(0),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },
@@ -60,6 +65,7 @@ export const issues = pgTable(
     check('issues_title_not_empty', sql`length(trim(${t.title})) > 0`),
     index('issues_org_updated_idx').on(t.orgId, t.updatedAt.desc()),
     index('issues_org_status_idx').on(t.orgId, t.status),
+    index('issues_org_status_position_idx').on(t.orgId, t.status, t.position),
   ],
 )
 

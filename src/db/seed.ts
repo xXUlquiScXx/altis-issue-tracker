@@ -12,6 +12,7 @@ import {
   type priorityEnum,
   type statusEnum,
 } from './schema'
+import { STATUSES } from '../lib/types'
 import { describeDatabase } from './describe-database'
 
 type Status = (typeof statusEnum.enumValues)[number]
@@ -233,6 +234,19 @@ async function seed() {
           updatedAt: new Date(time),
         })
       })
+
+      // Orden inicial del tablero: dentro de cada columna, la más reciente arriba.
+      for (const status of STATUSES) {
+        issueRows
+          .filter((row) => row.status === status)
+          .sort(
+            (a, b) =>
+              (b.updatedAt as Date).getTime() - (a.updatedAt as Date).getTime(),
+          )
+          .forEach((row, index) => {
+            row.position = index + 1
+          })
+      }
 
       await tx.insert(issues).values(issueRows)
       await tx.insert(issueEvents).values(eventRows)
