@@ -148,9 +148,10 @@ Mejoras de UX del login (pedidas tras la prueba manual):
 - 🟢 Commit: `feat(history): transactional activity log`
 
 ### Fase 8 — Comentarios (~45 min) [P0]
-- [ ] `listComments(issueId)` (con nombre del autor), `createComment`, `updateComment`, `deleteComment`.
-- [ ] Cualquier usuario de la org puede comentar issues de su org; **solo el autor** edita o borra (incluso si otro es admin).
-- [ ] Siempre verificar que el issue pertenece a la org del usuario.
+- [x] `listComments(issueId)` (con nombre del autor), `createComment`, `updateComment`, `deleteComment` (en `src/server/comments/`: `functions.ts` y `service.ts`).
+- [x] Cualquier usuario de la org puede comentar issues de su org; **solo el autor** edita o borra (incluso si otro es admin).
+- [x] Siempre verificar que el issue pertenece a la org del usuario.
+- [x] Tests en `tests/server/comments.test.ts` (aislamiento entre orgs, solo el autor edita/borra incluso siendo admin, comentar no toca el issue ni su historial).
 - 🟢 Commit: `feat(comments): crud with author-only edit/delete`
 
 ### Fase 9 — Frontend: base y listado (~2 h 15) [P0]
@@ -191,7 +192,7 @@ Preparar BD de prueba: `TEST_DATABASE_URL` apuntando a un Postgres **aislado** (
 - [ ] Sin sesión → `UNAUTHENTICATED` en listar/crear/editar/borrar.
 - [ ] Usuario de Acme no puede leer ni modificar issue/comentario/historial de Beta (aunque use su ID) → `NOT_FOUND`.
 - [x] Member: crea solo asignado a sí mismo; edita solo los suyos; no reasigna; no borra. Admin: puede todo en su org. (Hecho en la fase 6: `tests/server/issues.test.ts`.)
-- [ ] Comentarios: otro usuario (incluso admin) no puede editar/borrar un comentario ajeno.
+- [x] Comentarios: otro usuario (incluso admin) no puede editar/borrar un comentario ajeno. (Hecho en la fase 8.)
 - [ ] Registro: nunca crea admin aunque se envíe `role: 'admin'`.
 
 **Persistencia** (`tests/server/history.test.ts`):
