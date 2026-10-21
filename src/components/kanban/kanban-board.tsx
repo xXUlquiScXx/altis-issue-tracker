@@ -13,8 +13,10 @@ import {
   type DragStartEvent,
 } from '@dnd-kit/core'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
+import { Plus } from 'lucide-react'
 import { useCallback, useState } from 'react'
 import { IssueFilters } from '@/components/issues/issue-filters'
+import { IssueFormDialog } from '@/components/issues/issue-form-dialog'
 import { RefreshButton } from '@/components/refresh-button'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -68,6 +70,7 @@ export function KanbanBoard({
   const move = useMoveIssue(input)
   const [activeId, setActiveId] = useState<string | null>(null)
   const [resetKey, setResetKey] = useState(0)
+  const [creating, setCreating] = useState(false)
 
   // Mouse, dedo y teclado. Se separan mouse y dedo (en vez de un solo "pointer")
   // para que en el celular un deslizamiento normal siga haciendo scroll.
@@ -113,16 +116,29 @@ export function KanbanBoard({
   }
 
   const hasFilters = Boolean(filters.priority || filters.assignee || filters.q)
+  const canCreate = can(user, 'issue:create', {
+    orgId: user.orgId,
+    assigneeId: user.id,
+  })
 
   return (
     <section className="space-y-4">
       <div className="flex items-center justify-between gap-2">
         <h1 className="text-2xl font-bold">Kanban</h1>
-        <RefreshButton
-          label="Actualizar tablero"
-          isFetching={isFetching}
-          onRefresh={() => void refetch()}
-        />
+        <div className="flex items-center gap-2">
+          <RefreshButton
+            label="Actualizar tablero"
+            isFetching={isFetching}
+            onRefresh={() => void refetch()}
+          />
+          {/* Mismas reglas que en la lista: el member solo crea issues para sí mismo. */}
+          {canCreate && (
+            <Button onClick={() => setCreating(true)}>
+              <Plus />
+              Nuevo issue
+            </Button>
+          )}
+        </div>
       </div>
 
       <IssueFilters
@@ -229,6 +245,9 @@ export function KanbanBoard({
           </DndContext>
         </>
       )}
+
+      {/* El formulario de siempre; al crear, se refresca el tablero (issues.all). */}
+      <IssueFormDialog open={creating} onOpenChange={setCreating} user={user} />
     </section>
   )
 }

@@ -19,11 +19,13 @@ vi.mock('@/server/issues/functions', () => ({
   listIssues: vi.fn(),
   listOrgUsers: vi.fn(),
   updateIssue: vi.fn(),
+  createIssue: vi.fn(),
 }))
 const fns = await import('@/server/issues/functions')
 const listIssues = vi.mocked(fns.listIssues)
 const listOrgUsers = vi.mocked(fns.listOrgUsers)
 const updateIssue = vi.mocked(fns.updateIssue)
+const createIssue = vi.mocked(fns.createIssue)
 
 const ORG = 'org-1'
 const admin: SessionUser = {
@@ -162,6 +164,22 @@ beforeEach(() => {
     { id: ana.id, name: 'Ana', role: 'member' },
     { id: 'u-luis', name: 'Luis', role: 'member' },
   ])
+  // El servidor falso también crea: agrega la fila, igual que lo haría la base real.
+  createIssue.mockImplementation((async ({
+    data,
+  }: {
+    data: { title: string; status?: IssueDto['status'] }
+  }) => {
+    const row = makeIssue(
+      `new-${rows.length}`,
+      data.title,
+      data.status ?? 'todo',
+      null,
+      9,
+    )
+    rows.push(row)
+    return structuredClone(row)
+  }) as never)
   updateIssue.mockImplementation((async ({
     data,
   }: {
@@ -513,5 +531,78 @@ describe('kanban board: refresh button', () => {
     await waitFor(() =>
       expect((button as HTMLButtonElement).disabled).toBe(false),
     )
+  })
+})
+
+describe('kanban board: creating a new issue', () => {
+  it('offers the "Nuevo issue" button to an admin and to a member', async () => {
+    renderBoard(admin)
+    expect(
+      await screen.findByRole('button', { name: /Nuevo issue/ }),
+    ).toBeTruthy()
+    cleanup()
+    renderBoard(ana)
+    expect(
+      await screen.findByRole('button', { name: /Nuevo issue/ }),
+    ).toBeTruthy()
+  })
+
+  it('creates the issue and shows it in the "Por hacer" column without reloading', async () => {
+    const user = userEvent.setup()
+    renderBoard()
+    await screen.findByText('Todo de Ana')
+
+    await user.click(screen.getByRole('button', { name: /Nuevo issue/ }))
+    await user.type(await screen.findByLabelText('Título'), 'Tarea nueva')
+    await user.click(screen.getByRole('button', { name: 'Crear issue' }))
+
+    await waitFor(() => expect(createIssue).toHaveBeenCalledTimes(1))
+    expect(createIssue.mock.calls[0]![0]!.data).toMatchObject({
+      title: 'Tarea nueva',
+      status: 'todo',
+    })
+    // El formulario se cierra y la tarjeta aparece en su columna.
+    expect(await column('Por hacer').findByText('Tarea nueva')).toBeTruthy()
+    expect(screen.queryByText('Nuevo issue', { selector: 'h2' })).toBeNull()
+  })
+
+  it('puts the new card in the column of the status chosen in the form', async () => {
+    const user = userEvent.setup()
+    renderBoard()
+    await screen.findByText('Todo de Ana')
+
+    await user.click(screen.getByRole('button', { name: /Nuevo issue/ }))
+    await user.type(await screen.findByLabelText('Título'), 'Ya empezada')
+    await user.selectOptions(screen.getByLabelText('Estado'), 'in_progress')
+    await user.click(screen.getByRole('button', { name: 'Crear issue' }))
+
+    expect(await column('En progreso').findByText('Ya empezada')).toBeTruthy()
+    expect(column('Por hacer').queryByText('Ya empezada')).toBeNull()
+  })
+
+  it('keeps the member rules: no assignee to choose, and none is sent', async () => {
+    const user = userEvent.setup()
+    renderBoard(ana)
+    await screen.findByText('Todo de Ana')
+
+    await user.click(screen.getByRole('button', { name: /Nuevo issue/ }))
+    expect(await screen.findByText('Se te asignará a ti')).toBeTruthy()
+    await user.type(screen.getByLabelText('Título'), 'Mi tarea')
+    await user.click(screen.getByRole('button', { name: 'Crear issue' }))
+
+    await waitFor(() => expect(createIssue).toHaveBeenCalledTimes(1))
+    expect(createIssue.mock.calls[0]![0]!.data).not.toHaveProperty('assigneeId')
+  })
+
+  it('does not call the server with an empty title', async () => {
+    const user = userEvent.setup()
+    renderBoard()
+    await screen.findByText('Todo de Ana')
+
+    await user.click(screen.getByRole('button', { name: /Nuevo issue/ }))
+    await user.click(await screen.findByRole('button', { name: 'Crear issue' }))
+
+    expect(await screen.findByText('El título es obligatorio')).toBeTruthy()
+    expect(createIssue).not.toHaveBeenCalled()
   })
 })
