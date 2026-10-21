@@ -1,5 +1,5 @@
-import { Link, createFileRoute, useRouter } from '@tanstack/react-router'
-import { useState, type FormEvent } from 'react'
+import { Link, createFileRoute } from '@tanstack/react-router'
+import { PasswordInput } from '@/components/password-input'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -9,11 +9,12 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { parseApiError } from '@/lib/api-error'
-import { fieldErrorsFrom } from '@/lib/forms'
-import { apiErrorMessage, translateFields } from '@/lib/messages'
+import { useAuthForm } from '@/hooks/use-auth-form'
+import { useRememberedEmail } from '@/hooks/use-remembered-email'
+import { forgetEmail, rememberEmail } from '@/lib/remembered-email'
 import { loginSchema } from '@/lib/schemas'
 import { login } from '@/server/auth/functions'
 
@@ -22,39 +23,16 @@ export const Route = createFileRoute('/login')({
 })
 
 function LoginPage() {
-  const router = useRouter()
-  const navigate = Route.useNavigate()
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
-  const [formError, setFormError] = useState('')
-  const [pending, setPending] = useState(false)
-
-  async function onSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    setFormError('')
-    const form = new FormData(event.currentTarget)
-    const parsed = loginSchema.safeParse({
-      email: form.get('email'),
-      password: form.get('password'),
-    })
-    if (!parsed.success) {
-      setFieldErrors(translateFields(fieldErrorsFrom(parsed.error)))
-      return
-    }
-    setFieldErrors({})
-
-    setPending(true)
-    try {
-      await login({ data: parsed.data })
-      await router.invalidate()
-      await navigate({ to: '/' })
-    } catch (error) {
-      const apiError = await parseApiError(error)
-      setFieldErrors(translateFields(apiError.fields))
-      setFormError(apiErrorMessage(apiError))
-    } finally {
-      setPending(false)
-    }
-  }
+  const rememberedEmail = useRememberedEmail()
+  const { fieldErrors, formError, pending, handleSubmit } = useAuthForm({
+    schema: loginSchema,
+    submit: async (data, form) => {
+      await login({ data })
+      // Solo se guarda el correo cuando el login salió bien y el checkbox está marcado.
+      if (form.get('remember') === 'on') rememberEmail(data.email)
+      else forgetEmail()
+    },
+  })
 
   return (
     <main className="grid min-h-svh place-items-center p-4">
@@ -63,15 +41,18 @@ function LoginPage() {
           <CardTitle>Iniciar sesión</CardTitle>
           <CardDescription>Entra con tu correo y contraseña</CardDescription>
         </CardHeader>
-        <form onSubmit={onSubmit} noValidate>
+        <form onSubmit={handleSubmit} noValidate>
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email">Correo</Label>
+              {/* La key remonta el input cuando se carga el correo guardado. */}
               <Input
+                key={rememberedEmail}
                 id="email"
                 name="email"
                 type="email"
                 autoComplete="email"
+                defaultValue={rememberedEmail}
                 aria-invalid={!!fieldErrors.email}
               />
               {fieldErrors.email && (
@@ -80,10 +61,9 @@ function LoginPage() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Contraseña</Label>
-              <Input
+              <PasswordInput
                 id="password"
                 name="password"
-                type="password"
                 autoComplete="current-password"
                 aria-invalid={!!fieldErrors.password}
               />
@@ -92,6 +72,17 @@ function LoginPage() {
                   {fieldErrors.password}
                 </p>
               )}
+            </div>
+            <div className="flex items-center gap-2">
+              <Checkbox
+                key={rememberedEmail}
+                id="remember"
+                name="remember"
+                defaultChecked={rememberedEmail !== ''}
+              />
+              <Label htmlFor="remember" className="font-normal">
+                Recordar mi correo
+              </Label>
             </div>
             {formError && (
               <p role="alert" className="text-sm text-destructive">

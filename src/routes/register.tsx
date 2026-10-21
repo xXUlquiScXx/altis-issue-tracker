@@ -1,5 +1,5 @@
-import { Link, createFileRoute, useRouter } from '@tanstack/react-router'
-import { useState, type FormEvent } from 'react'
+import { Link, createFileRoute } from '@tanstack/react-router'
+import { PasswordInput } from '@/components/password-input'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -11,9 +11,7 @@ import {
 } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { parseApiError } from '@/lib/api-error'
-import { fieldErrorsFrom } from '@/lib/forms'
-import { apiErrorMessage, translateFields } from '@/lib/messages'
+import { useAuthForm } from '@/hooks/use-auth-form'
 import { registerSchema } from '@/lib/schemas'
 import { register } from '@/server/auth/functions'
 
@@ -22,42 +20,10 @@ export const Route = createFileRoute('/register')({
 })
 
 function RegisterPage() {
-  const router = useRouter()
-  const navigate = Route.useNavigate()
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
-  const [formError, setFormError] = useState('')
-  const [pending, setPending] = useState(false)
-
-  async function onSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    setFormError('')
-    const form = new FormData(event.currentTarget)
-    // Solo se envían nombre, correo y contraseña: rol y org los decide el servidor.
-    const parsed = registerSchema.safeParse({
-      name: form.get('name'),
-      email: form.get('email'),
-      password: form.get('password'),
-    })
-    if (!parsed.success) {
-      setFieldErrors(translateFields(fieldErrorsFrom(parsed.error)))
-      return
-    }
-    setFieldErrors({})
-
-    setPending(true)
-    try {
-      await register({ data: parsed.data })
-      await router.invalidate()
-      await navigate({ to: '/' })
-    } catch (error) {
-      const apiError = await parseApiError(error)
-      setFieldErrors(translateFields(apiError.fields))
-      // Si el error ya se muestra en un campo, no se repite arriba.
-      setFormError(apiError.fields ? '' : apiErrorMessage(apiError))
-    } finally {
-      setPending(false)
-    }
-  }
+  const { fieldErrors, formError, pending, handleSubmit } = useAuthForm({
+    schema: registerSchema,
+    submit: (data) => register({ data }),
+  })
 
   return (
     <main className="grid min-h-svh place-items-center p-4">
@@ -68,7 +34,7 @@ function RegisterPage() {
             Te registrarás como miembro de la organización demo
           </CardDescription>
         </CardHeader>
-        <form onSubmit={onSubmit} noValidate>
+        <form onSubmit={handleSubmit} noValidate>
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="name">Nombre</Label>
@@ -97,10 +63,9 @@ function RegisterPage() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Contraseña</Label>
-              <Input
+              <PasswordInput
                 id="password"
                 name="password"
-                type="password"
                 autoComplete="new-password"
                 aria-invalid={!!fieldErrors.password}
               />
