@@ -94,11 +94,11 @@ Seguridad extra opcional: FK compuestas o chequeo en servidor de que `assignee.o
 
 ### Fase 3 — Primer despliegue "esqueleto" (~45 min) [P0]
 > Se hace **temprano** a propósito: los problemas de despliegue aparecen aquí, no a las 4 p. m. del último día.
-- [ ] Configurar el preset de Vercel según la doc oficial de TanStack Start.
-- [ ] En Vercel → Project Settings → General → **Node.js Version: 22.x**.
-- [ ] Variables de entorno en Vercel: `DATABASE_URL` (pooler 6543), `JWT_SECRET` (aleatorio largo: `openssl rand -base64 48`), `DEMO_ORG_SLUG`, `APP_ORIGIN`.
-- [ ] Ruta `/api/health` que haga `select 1` a la BD; abrirla en la URL de Vercel.
-- [ ] Anotar la URL pública para el README.
+- [x] Configurar el preset de Vercel según la doc oficial de TanStack Start. Se usa el plugin `nitro/vite`; en Vercel el preset se detecta solo y genera una función `nodejs22.x`.
+- [x] En Vercel → Project Settings → General → **Node.js Version: 22.x**.
+- [x] Variables de entorno en Vercel: `DATABASE_URL` (pooler 6543), `JWT_SECRET` (aleatorio largo: `openssl rand -base64 48`), `DEMO_ORG_SLUG`, `APP_ORIGIN`.
+- [x] Ruta `/api/health` que haga `select 1` a la BD; abrirla en la URL de Vercel. Verificado: responde `200 {"status":"ok","db":"ok"}`.
+- [x] Anotar la URL pública para el README: https://altis-issue-tracker.vercel.app/
 - 🟢 Commit: `chore: vercel deployment skeleton + health check`
 
 ### Fase 4 — CI mínimo (~30 min) [P0]
