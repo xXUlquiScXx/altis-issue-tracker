@@ -41,7 +41,7 @@ export function KanbanCard({ issue, href, canMove, onView, onMove }: Props) {
           href={href}
           // Sin esto, el navegador intenta arrastrar el enlace en vez de la tarjeta.
           draggable={false}
-          className="min-w-0 flex-1 font-medium break-words hover:underline"
+          className="min-w-0 flex-1 rounded font-medium break-words hover:underline focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
           onClick={(event) => {
             if (!isPlainClick(event)) return
             event.preventDefault()
@@ -58,7 +58,7 @@ export function KanbanCard({ issue, href, canMove, onView, onMove }: Props) {
             {...listeners}
             type="button"
             aria-label={`Arrastrar «${issue.title}»`}
-            className="-mt-0.5 -mr-1 cursor-grab touch-none rounded p-1 text-muted-foreground hover:bg-muted active:cursor-grabbing"
+            className="-mt-1 -mr-1.5 cursor-grab touch-none rounded p-1.5 text-muted-foreground hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none active:cursor-grabbing"
           >
             <GripVertical className="size-4" />
           </button>

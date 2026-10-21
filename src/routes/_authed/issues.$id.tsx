@@ -20,7 +20,7 @@ function IssueDetailRoute() {
   }
 
   return (
-    <main className="mx-auto max-w-3xl p-4">
+    <main id="contenido" className="mx-auto max-w-3xl p-4">
       <IssueDetailPage issueId={id} user={user} onBack={goBack} />
     </main>
   )

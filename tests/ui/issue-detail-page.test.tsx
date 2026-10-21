@@ -9,6 +9,7 @@ import {
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { IssueDetailPage } from '@/components/issues/issue-detail-page'
+import { queryKeys } from '@/lib/query-keys'
 import type { IssueDto, SessionUser } from '@/lib/types'
 
 vi.mock('@/server/comments/functions', () => ({
@@ -70,10 +71,10 @@ function makeIssue(patch: Partial<IssueDto> = {}): IssueDto {
 
 const onBack = vi.fn()
 
-function renderPage(user: SessionUser = ana) {
-  const client = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
-  })
+function renderPage(
+  user: SessionUser = ana,
+  client = new QueryClient({ defaultOptions: { queries: { retry: false } } }),
+) {
   return render(
     <QueryClientProvider client={client}>
       <IssueDetailPage issueId="i-1" user={user} onBack={onBack} />
@@ -228,6 +229,36 @@ describe('issue detail page: errors', () => {
       expect(onBack).toHaveBeenCalled()
     },
   )
+
+  it('marks the issue lists and boards as outdated when the issue turns out not to exist', async () => {
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    })
+    const listKey = queryKeys.issues.list({ page: 1 })
+    const boardKey = queryKeys.issues.board({ page: 1 })
+    const other = queryKeys.orgUsers
+    client.setQueryData(listKey, { items: [], total: 0, page: 1, pageSize: 20 })
+    client.setQueryData(boardKey, {
+      items: [],
+      total: 0,
+      page: 1,
+      pageSize: 100,
+    })
+    client.setQueryData(other, [])
+    getIssue.mockRejectedValue(
+      errorResponse('NOT_FOUND', 'Issue not found', 404),
+    )
+    renderPage(ana, client)
+
+    await screen.findByText('Este issue no existe')
+    // La lista donde seguía apareciendo y el tablero se vuelven a pedir al abrirlos...
+    await waitFor(() =>
+      expect(client.getQueryState(listKey)?.isInvalidated).toBe(true),
+    )
+    expect(client.getQueryState(boardKey)?.isInvalidated).toBe(true)
+    // ...pero no se toca lo que no tiene que ver.
+    expect(client.getQueryState(other)?.isInvalidated).toBe(false)
+  })
 
   it('offers a retry on a server error', async () => {
     const user = userEvent.setup()

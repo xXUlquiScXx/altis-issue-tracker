@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button'
 import {
   Table,
   TableBody,
+  TableCaption,
   TableCell,
   TableHead,
   TableHeader,
@@ -35,6 +36,7 @@ export function IssueTable({
   return (
     <div className="overflow-x-auto rounded-lg border">
       <Table>
+        <TableCaption className="sr-only">Lista de issues</TableCaption>
         <TableHeader>
           <TableRow>
             <TableHead>Título</TableHead>
@@ -114,6 +116,7 @@ export function IssueTable({
                       <Button
                         variant="ghost"
                         size="icon-sm"
+                        className="max-sm:size-9"
                         aria-label={`Editar ${issue.title}`}
                         onClick={() => onEdit(issue)}
                       >
@@ -124,6 +127,7 @@ export function IssueTable({
                       <Button
                         variant="ghost"
                         size="icon-sm"
+                        className="max-sm:size-9"
                         aria-label={`Eliminar ${issue.title}`}
                         onClick={() => onDelete(issue)}
                       >

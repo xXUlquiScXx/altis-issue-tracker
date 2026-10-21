@@ -35,7 +35,7 @@ function IssuesPage() {
     void navigate({ to: '/issues/$id', params: { id: issue.id } })
 
   return (
-    <main className="mx-auto max-w-6xl p-4">
+    <main id="contenido" className="mx-auto max-w-6xl p-4">
       <IssuesView
         user={user}
         filters={filters}

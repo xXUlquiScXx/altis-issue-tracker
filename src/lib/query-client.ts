@@ -50,7 +50,9 @@ export function createQueryClient(onUnauthenticated: () => void) {
     defaultOptions: {
       queries: {
         staleTime: 30_000,
-        refetchOnWindowFocus: false,
+        // Al volver a la pestaña, lo que ya tenga más de `staleTime` se actualiza solo:
+        // así se enteran de cambios hechos por otras personas o en otra ventana.
+        refetchOnWindowFocus: true,
         // Reintenta una vez solo si el fallo pudo ser pasajero (red o 500).
         retry: (failureCount, error) =>
           failureCount < 1 && (!isApiError(error) || error.code === 'INTERNAL'),

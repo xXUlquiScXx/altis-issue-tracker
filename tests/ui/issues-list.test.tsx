@@ -8,6 +8,7 @@ import {
 } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
+import { Toaster, toast } from 'sonner'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { IssuesView } from '@/components/issues/issues-view'
 import { formatDate } from '@/lib/format'
@@ -29,6 +30,7 @@ const listOrgUsers = vi.mocked(fns.listOrgUsers)
 const getIssue = vi.mocked(fns.getIssue)
 const createIssue = vi.mocked(fns.createIssue)
 const deleteIssue = vi.mocked(fns.deleteIssue)
+const updateIssue = vi.mocked(fns.updateIssue)
 
 const ORG = 'org-1'
 const admin: SessionUser = {
@@ -52,10 +54,13 @@ const luis = { id: 'u-luis', name: 'Luis', role: 'member' as const }
 // 45 issues falsos (3 páginas de 20). Se reparten estados y responsables.
 const STATUSES = ['todo', 'in_progress', 'done'] as const
 const PRIORITIES = ['low', 'med', 'high'] as const
+// UUID válidos: los esquemas exigen este formato al editar o borrar un issue.
+const issueId = (i: number) =>
+  `00000000-0000-4000-8000-${String(i).padStart(12, '0')}`
 const ALL: IssueDto[] = Array.from({ length: 45 }, (_, i) => {
   const assignee = i % 5 === 0 ? null : i % 2 === 0 ? ana : luis
   return {
-    id: `i-${i}`,
+    id: issueId(i),
     title: i === 3 ? 'Login roto' : `Issue ${String(i + 1).padStart(2, '0')}`,
     description: i === 1 ? '## Pasos\n\n1. Abrir\n2. **Guardar**' : null,
     status: STATUSES[i % 3]!,
@@ -118,6 +123,7 @@ function renderView(user: SessionUser = admin) {
   return render(
     <QueryClientProvider client={client}>
       <Harness user={user} />
+      <Toaster />
     </QueryClientProvider>,
   )
 }
@@ -137,6 +143,8 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup()
+  // Los avisos de sonner son globales: sin esto, el de un test aparece en el siguiente.
+  toast.dismiss()
   vi.clearAllMocks()
 })
 
@@ -364,7 +372,7 @@ describe('issue form and delete', () => {
 
   it('deletes an issue only after the admin confirms', async () => {
     const user = userEvent.setup()
-    deleteIssue.mockResolvedValue({ id: 'i-0' })
+    deleteIssue.mockResolvedValue({ id: issueId(0) })
     renderView(admin)
     await screen.findByText('Issue 01')
 
@@ -374,7 +382,7 @@ describe('issue form and delete', () => {
 
     await user.click(screen.getByRole('button', { name: 'Eliminar' }))
     await waitFor(() =>
-      expect(deleteIssue).toHaveBeenCalledWith({ data: { id: 'i-0' } }),
+      expect(deleteIssue).toHaveBeenCalledWith({ data: { id: issueId(0) } }),
     )
   })
 })
@@ -391,14 +399,14 @@ describe('link to the issue detail', () => {
     await user.click(screen.getByText('Issue 01'))
     expect(onViewIssue).toHaveBeenCalledTimes(1)
     expect(onViewIssue).toHaveBeenCalledWith(
-      expect.objectContaining({ id: 'i-0' }),
+      expect.objectContaining({ id: issueId(0) }),
     )
   })
 
   it('gives the title a real URL, so it can be copied or opened in a new tab', async () => {
     renderView(ana)
     const link = await screen.findByRole('link', { name: 'Issue 02' })
-    expect(link.getAttribute('href')).toBe('/issues/i-1')
+    expect(link.getAttribute('href')).toBe(`/issues/${issueId(1)}`)
   })
 
   it('opens when tapping anywhere on the title cell, only once', async () => {
@@ -426,5 +434,101 @@ describe('link to the issue detail', () => {
     await user.click(link)
     await user.keyboard('{/Control}')
     expect(onViewIssue).not.toHaveBeenCalled()
+  })
+})
+
+describe('issue list: collapsible filters on small screens', () => {
+  it('hides the selectors behind a "Filtros" button that opens and closes them', async () => {
+    const user = userEvent.setup()
+    renderView()
+    await screen.findByText('Issue 01')
+
+    const toggle = screen.getByRole('button', { name: /^Filtros/ })
+    expect(toggle.getAttribute('aria-expanded')).toBe('false')
+    await user.click(toggle)
+    expect(toggle.getAttribute('aria-expanded')).toBe('true')
+    // El botón apunta a la zona que abre, para los lectores de pantalla.
+    expect(
+      document.getElementById(toggle.getAttribute('aria-controls')!),
+    ).toBeTruthy()
+    await user.click(toggle)
+    expect(toggle.getAttribute('aria-expanded')).toBe('false')
+  })
+
+  it('shows how many filters are active on the button', async () => {
+    const user = userEvent.setup()
+    renderView()
+    await screen.findByText('Issue 01')
+    expect(screen.getByRole('button', { name: 'Filtros' })).toBeTruthy()
+
+    await user.selectOptions(
+      screen.getByLabelText('Filtrar por prioridad'),
+      'high',
+    )
+    expect(
+      await screen.findByRole('button', { name: 'Filtros (1)' }),
+    ).toBeTruthy()
+    await user.selectOptions(
+      screen.getByLabelText('Filtrar por estado'),
+      'done',
+    )
+    expect(
+      await screen.findByRole('button', { name: 'Filtros (2)' }),
+    ).toBeTruthy()
+  })
+})
+
+describe('issue list: an issue that somebody else already deleted', () => {
+  it('tells the user and refreshes the list when deleting an issue that no longer exists', async () => {
+    const user = userEvent.setup()
+    deleteIssue.mockRejectedValueOnce(
+      Response.json(
+        { error: { code: 'NOT_FOUND', message: 'Issue not found' } },
+        { status: 404 },
+      ),
+    )
+    renderView(admin)
+    await screen.findByText('Issue 01')
+    const callsBefore = listIssues.mock.calls.length
+
+    await user.click(screen.getByRole('button', { name: 'Eliminar Issue 01' }))
+    await user.click(await screen.findByRole('button', { name: 'Eliminar' }))
+
+    expect(
+      await screen.findByText('El issue no existe o no tienes acceso a él'),
+    ).toBeTruthy()
+    // El diálogo se cierra y la lista se vuelve a pedir.
+    await waitFor(() =>
+      expect(screen.queryByText('¿Eliminar este issue?')).toBeNull(),
+    )
+    await waitFor(() =>
+      expect(listIssues.mock.calls.length).toBeGreaterThan(callsBefore),
+    )
+  })
+
+  it('tells the user and refreshes the list when editing an issue that no longer exists', async () => {
+    const user = userEvent.setup()
+    updateIssue.mockRejectedValueOnce(
+      Response.json(
+        { error: { code: 'NOT_FOUND', message: 'Issue not found' } },
+        { status: 404 },
+      ),
+    )
+    renderView(admin)
+    await screen.findByText('Issue 01')
+    const callsBefore = listIssues.mock.calls.length
+
+    await user.click(screen.getByRole('button', { name: 'Editar Issue 01' }))
+    await user.click(
+      await screen.findByRole('button', { name: 'Guardar cambios' }),
+    )
+
+    expect(
+      await screen.findByText('El issue no existe o no tienes acceso a él'),
+    ).toBeTruthy()
+    await waitFor(() => expect(screen.queryByText('Editar issue')).toBeNull())
+    await waitFor(() =>
+      expect(listIssues.mock.calls.length).toBeGreaterThan(callsBefore),
+    )
   })
 })

@@ -7,7 +7,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { toast } from 'sonner'
 import { useIssueMutations } from '@/hooks/use-issue-mutations'
+import { useRefreshIssueLists } from '@/hooks/use-refresh-issue-lists'
+import { isApiError } from '@/lib/api'
+import { apiErrorMessage } from '@/lib/messages'
 import type { IssueDto } from '@/lib/types'
 
 interface Props {
@@ -17,14 +21,22 @@ interface Props {
 
 export function DeleteIssueDialog({ issue, onClose }: Props) {
   const { remove } = useIssueMutations()
+  const refreshLists = useRefreshIssueLists()
 
   async function confirm() {
     if (!issue) return
     try {
       await remove.mutateAsync(issue.id)
       onClose()
-    } catch {
-      // El error ya se avisa con un toast desde el manejo central.
+    } catch (error) {
+      if (isApiError(error, 'NOT_FOUND')) {
+        // Otra persona ya lo había borrado: no queda nada que hacer, solo
+        // avisar y actualizar la lista.
+        toast.error(apiErrorMessage(error))
+        refreshLists()
+        onClose()
+      }
+      // 401, 403 y 500 ya se avisan con un toast desde el manejo central.
     }
   }
 

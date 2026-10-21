@@ -15,6 +15,7 @@ import { NativeSelect } from '@/components/ui/native-select'
 import { Textarea } from '@/components/ui/textarea'
 import { useIssueMutations } from '@/hooks/use-issue-mutations'
 import { useOrgUsers } from '@/hooks/use-org-users'
+import { useRefreshIssueLists } from '@/hooks/use-refresh-issue-lists'
 import { useVisibleAreaStyle } from '@/hooks/use-visible-area'
 import { isApiError } from '@/lib/api'
 import { fieldErrorsFrom } from '@/lib/forms'
@@ -96,6 +97,7 @@ function IssueForm({
 }) {
   const { create, update } = useIssueMutations()
   const { data: users } = useOrgUsers()
+  const refreshLists = useRefreshIssueLists()
   const [errors, setErrors] = useState<Record<string, string>>({})
   const pending = create.isPending || update.isPending
 
@@ -143,8 +145,10 @@ function IssueForm({
       if (isApiError(error, 'VALIDATION')) {
         setErrors(translateFields(error.fields))
       } else if (isApiError(error, 'NOT_FOUND')) {
-        // El issue ya no existe (otra persona lo borró): se avisa y se cierra.
+        // El issue ya no existe (otra persona lo borró): se avisa, se cierra y
+        // la lista se actualiza para que deje de mostrarlo.
         toast.error(apiErrorMessage(error))
+        refreshLists()
         onDone()
       }
       // 401, 403 y 500 ya se avisan con un toast desde el manejo central.

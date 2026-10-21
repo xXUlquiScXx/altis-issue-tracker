@@ -5,6 +5,9 @@ import type { ListIssuesInput } from './schemas'
 export const queryKeys = {
   issues: {
     all: ['issues'] as const,
+    // Todas las listas y todos los tableros (sea cual sea su filtro o página).
+    lists: ['issues', 'list'] as const,
+    boards: ['issues', 'board'] as const,
     list: (filters: Partial<ListIssuesInput>) =>
       ['issues', 'list', filters] as const,
     // El tablero tiene su propia consulta (sin paginar): todas las tarjetas de una vez.

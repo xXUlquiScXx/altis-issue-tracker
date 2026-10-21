@@ -1,11 +1,12 @@
 import { useQuery } from '@tanstack/react-query'
 import { ArrowLeft, Link as LinkIcon, Pencil } from 'lucide-react'
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { toast } from 'sonner'
 import { Markdown } from '@/components/markdown'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import { useRefreshIssueLists } from '@/hooks/use-refresh-issue-lists'
 import { api, isApiError } from '@/lib/api'
 import { formatDateTime } from '@/lib/format'
 import { apiErrorMessage } from '@/lib/messages'
@@ -72,6 +73,13 @@ function DetailError({
 }) {
   // Un id inexistente, de otra org o mal escrito se ven igual: no existe para ti.
   const gone = isApiError(error, 'NOT_FOUND') || isApiError(error, 'VALIDATION')
+
+  // Si el issue ya no existe, la lista y el tablero que lo muestran están
+  // desactualizados: se marcan para que se vuelvan a pedir al regresar.
+  const refreshLists = useRefreshIssueLists()
+  useEffect(() => {
+    if (gone) refreshLists()
+  }, [gone, refreshLists])
 
   return (
     <div

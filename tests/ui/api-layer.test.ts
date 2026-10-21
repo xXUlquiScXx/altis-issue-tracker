@@ -154,6 +154,14 @@ describe('createQueryClient() central error handling', () => {
     expect(onUnauthenticated).not.toHaveBeenCalled()
   })
 
+  it('refreshes stale data when the user comes back to the tab', () => {
+    const queries =
+      createQueryClient(onUnauthenticated).getDefaultOptions().queries!
+    expect(queries.refetchOnWindowFocus).toBe(true)
+    // Solo lo que ya estaba "viejo": no se pide todo en cada cambio de pestaña.
+    expect(queries.staleTime).toBeGreaterThan(0)
+  })
+
   it('retries once only when the failure may be temporary', () => {
     const retry = createQueryClient(onUnauthenticated).getDefaultOptions()
       .queries!.retry as (count: number, error: Error) => boolean
