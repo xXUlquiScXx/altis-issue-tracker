@@ -1,0 +1,273 @@
+# ROADMAP — Issue Tracker Kanban (Challenge Altis)
+
+**Entrega:** miércoles 21 de octubre de 2026, 5:00 p. m. (Colombia, UTC-5).
+**Regla de oro:** un flujo principal completo, desplegado y probado vale más que extras a medias. Los extras opcionales (adjuntos, realtime, docker-compose, CD) NO se hacen hasta que todo lo obligatorio esté verde.
+
+---
+
+## 0. Decisiones de stack (cerradas)
+
+| Tema | Decisión | Por qué |
+|---|---|---|
+| Framework | **TanStack Start + React + TypeScript** | Obligatorio. Frontend y backend (server functions) en una sola app. |
+| Datos cliente | **TanStack Query** (React Query) | Obligatorio "o equivalente". Da caché, estados loading/error y actualización optimista. |
+| BD | **PostgreSQL en Supabase** (solo como Postgres) | Gratis, en la nube. NO usar Supabase Auth. |
+| ORM | **Drizzle ORM + drizzle-kit** | **Obligatorio** (PDF p.3). Esquema + migraciones versionadas en el repo. |
+| Auth | **Propia**: `bcryptjs` (hash) + `jose` (JWT) + cookie `httpOnly` | Necesitamos `org_id` y `role` en nuestra tabla `users`. |
+| Validación | **zod** (cliente y servidor, mismos esquemas) | Un solo esquema reutilizable. |
+| UI | Tailwind CSS + shadcn/ui + `sonner` (toasts) | Rápido y responsive. |
+| Drag & drop | `@dnd-kit/core` | Estándar, funciona con touch. |
+| Markdown | `react-markdown` (+ `remark-gfm`) | Renderizado seguro (no usar `dangerouslySetInnerHTML`). |
+| Tests | **Vitest** + Testing Library (+ `happy-dom` o `jsdom`) | Un solo runner para servidor y UI. |
+| CI | **GitHub Actions** con service `postgres` | Obligatorio y automático en push/PR. |
+| Hosting app | **Vercel** (plan Hobby, cuenta nueva) | Gratis, URL pública, sin cold start molesto. |
+| Gestor de paquetes | **pnpm** | Rápido. (npm también vale; no mezclar.) |
+
+> ⚠️ **Verificar en la documentación oficial antes de codificar**, porque la API de TanStack Start cambia rápido: `createServerFn`, middleware, manejo de cookies/headers de request, y el preset de despliegue a Vercel (Nitro). Docs: https://tanstack.com/start/latest
+
+### Reglas de diseño que se aplican en TODAS las fases
+1. **Toda** consulta a issues/comentarios/usuarios/eventos filtra por `org_id` del usuario de la sesión. El `org_id` NUNCA viene del cliente.
+2. Autorización en el **servidor** (módulo único `can(user, action, resource)`); la UI solo refleja lo que ya decide ese módulo.
+3. Recurso de otra organización → responder **404** (no 403), para no revelar que existe.
+4. Errores con códigos consistentes: `UNAUTHENTICATED` (401), `FORBIDDEN` (403), `NOT_FOUND` (404), `VALIDATION` (400), `RATE_LIMITED` (429), `INTERNAL` (500). El 500 nunca expone stack traces ni mensajes de BD.
+5. Cambio de issue + evento de historial = **una sola transacción**.
+6. Código en inglés; documentación en español.
+
+---
+
+## 1. Modelo de datos (borrador)
+
+```
+organizations  id (uuid pk), name, slug (unique), created_at
+users          id, org_id → organizations, email (unique), name, password_hash,
+               role enum('admin','member'), created_at
+issues         id, org_id, title (not null, check length>0), description (text, nullable),
+               status enum('todo','in_progress','done') default 'todo',
+               priority enum('low','med','high') default 'med',
+               assignee_id → users (nullable), created_by → users,
+               labels text[] default '{}', created_at, updated_at
+comments       id, issue_id → issues (on delete cascade), org_id, author_id → users,
+               body (not null), created_at, updated_at
+issue_events   id, issue_id → issues (on delete cascade), org_id, actor_id → users,
+               type enum('created','status_changed','priority_changed','assignee_changed'),
+               from_value (text, nullable), to_value (text, nullable), created_at
+```
+
+Índices: `issues(org_id, updated_at desc)`, `issues(org_id, status)`, `comments(issue_id, created_at)`, `issue_events(issue_id, created_at)`.
+Seguridad extra opcional: FK compuestas o chequeo en servidor de que `assignee.org_id == issue.org_id`.
+
+---
+
+## 2. Fases
+
+> Cada fase termina con un **checkpoint de commit**: el agente te avisa y te da un mensaje corto; tú revisas el diff y haces el commit manualmente.
+> Marcas: **[P0]** obligatorio · **[P1]** muy deseable · **[P2]** si sobra tiempo.
+> Tiempos = presupuesto aproximado. Si una fase se pasa del doble, parar y recortar (ver sección 4).
+
+### Fase 0 — Cuentas y herramientas (~30 min) [P0]
+- [ ] Repo en GitHub (público o con acceso para evaluadores) — nombre sugerido: `altis-issue-tracker`.
+- [ ] Proyecto en **Supabase**: guardar la *database password*. Anotar las dos cadenas de conexión: **Transaction pooler** (puerto 6543, para la app) y **Session pooler / Direct** (puerto 5432, para migraciones).
+- [ ] Cuenta **Vercel** nueva (correo alterno), conectada al repo de GitHub.
+- [ ] **Node 22 LTS** (local: `nvm use 22`), pnpm, git. Docker (opcional, para Postgres local de pruebas).
+- [ ] Fijar la versión de Node en el repo para que local, CI y Vercel coincidan: archivo `.nvmrc` con el contenido `22` y en `package.json` `"engines": { "node": ">=22" }`.
+- 🟢 Commit: ninguno aún.
+
+### Fase 1 — Scaffold (~45 min) [P0]
+- [ ] Crear proyecto TanStack Start + TS (seguir la guía oficial actual de "Getting Started").
+- [ ] Instalar: tailwind, shadcn/ui, `@tanstack/react-query`, `zod`, `drizzle-orm`, `postgres` (driver), `drizzle-kit`, `bcryptjs`, `jose`, `sonner`, `@dnd-kit/core`, `react-markdown`, `remark-gfm`, `vitest`, `@testing-library/react`, `@testing-library/user-event`, `happy-dom`, eslint + prettier.
+- [ ] Scripts en `package.json`: `dev`, `build`, `lint`, `typecheck`, `test`, `db:generate`, `db:migrate`, `db:seed`, `db:reset:test` (ver fase 2).
+- [ ] `.env.example` (sin secretos reales) con: `DATABASE_URL`, `DATABASE_URL_MIGRATE`, `TEST_DATABASE_URL`, `JWT_SECRET`, `DEMO_ORG_SLUG`, `APP_ORIGIN`.
+- [ ] `.gitignore` incluye `.env*` (excepto `.env.example`), `node_modules`, `dist`, `.output`, `.vercel`.
+- 🟢 Commit: `chore: scaffold tanstack start app`
+
+### Fase 2 — Base de datos con Drizzle (~1 h 15) [P0]
+- [ ] `src/db/schema.ts` con las tablas de la sección 1 (enums con `pgEnum`).
+- [ ] `drizzle.config.ts`; `pnpm db:generate` → carpeta `drizzle/` con migraciones SQL **commiteadas**.
+- [ ] `src/db/index.ts`: cliente `postgres(DATABASE_URL, { prepare: false })` (obligatorio con el pooler en modo transacción).
+- [ ] Script de migración (`db:migrate`) usando `DATABASE_URL_MIGRATE`.
+- [ ] `src/db/seed.ts` (idempotente o con truncado previo):
+  - Orgs **Acme** y **Beta**; en cada una 1 admin + 2 members. Credenciales fijas y documentadas (ej. `admin@acme.test` / `Password123!`).
+  - **≥ 30 issues** repartidos entre ambas orgs, variados en status, priority, assignee (incluye sin asignar) y labels.
+  - Comentarios de ejemplo y eventos de historial coherentes con cada issue (al menos `created`, y algunos cambios).
+- [ ] Aplicar migración + seed contra Supabase y verificar en el Table Editor.
+- 🟢 Commit: `feat(db): drizzle schema, migrations and seed`
+
+### Fase 3 — Primer despliegue "esqueleto" (~45 min) [P0]
+> Se hace **temprano** a propósito: los problemas de despliegue aparecen aquí, no a las 4 p. m. del último día.
+- [ ] Configurar el preset de Vercel según la doc oficial de TanStack Start.
+- [ ] En Vercel → Project Settings → General → **Node.js Version: 22.x**.
+- [ ] Variables de entorno en Vercel: `DATABASE_URL` (pooler 6543), `JWT_SECRET` (aleatorio largo: `openssl rand -base64 48`), `DEMO_ORG_SLUG`, `APP_ORIGIN`.
+- [ ] Ruta `/api/health` que haga `select 1` a la BD; abrirla en la URL de Vercel.
+- [ ] Anotar la URL pública para el README.
+- 🟢 Commit: `chore: vercel deployment skeleton + health check`
+
+### Fase 4 — CI mínimo (~30 min) [P0]
+> Se crea ya para que cada push se valide desde el principio.
+- [ ] `.github/workflows/ci.yml`, disparado en `push` y `pull_request`.
+- [ ] Job con `services: postgres:16` (env `POSTGRES_PASSWORD`, `POSTGRES_DB=test`, health check) y pasos: checkout → pnpm + Node (`actions/setup-node` con `node-version-file: .nvmrc` y caché de pnpm) → `pnpm install --frozen-lockfile` → `lint` → `typecheck` → `db:migrate` (contra el service, vía `TEST_DATABASE_URL`) → `test` → `build`.
+- [ ] Verificar que corre verde (aunque todavía haya 0–1 tests; agregar un test trivial si Vitest falla por "no tests").
+- 🟢 Commit: `ci: github actions pipeline with postgres service`
+
+### Fase 5 — Autenticación (~1 h 30) [P0]
+- [ ] `src/server/auth/password.ts`: `hashPassword` / `verifyPassword` con `bcryptjs` (cost 10–12).
+- [ ] `src/server/auth/session.ts`: `signSession({userId, orgId, role})` y `verifySession` con `jose` (HS256, `exp` 1–2 h). Cookie `httpOnly`, `SameSite=Lax`, `Secure` en producción, `Path=/`.
+- [ ] Server functions: `register`, `login`, `logout`, `getMe`.
+  - `register`: valida con zod, email único (normalizado a minúsculas), crea **siempre** `role='member'` en la org `DEMO_ORG_SLUG`. Ignorar cualquier `role`/`orgId` que envíe el cliente.
+  - `login`: mensaje genérico ante credenciales inválidas (no revelar si el email existe).
+- [ ] **Rate limit** en `register`/`login` (por IP+email; ventana fija, en memoria). Documentar en README que en serverless es por instancia (trade-off).
+- [ ] Middleware `requireUser` que resuelve el usuario desde la cookie y lanza `UNAUTHENTICATED` si falta o expiró.
+- [ ] Expiración: si el JWT venció → 401 y el cliente redirige a `/login` (re-login simple, permitido por el PDF).
+- [ ] Rutas UI: `/login`, `/register`; guard en rutas protegidas.
+- 🟢 Commit: `feat(auth): register, login, jwt cookie session`
+
+### Fase 6 — Autorización + backend de issues (~2 h) [P0]
+- [ ] `src/server/authz.ts` con `can(user, action, issue?)`; acciones: `issue:create`, `issue:update`, `issue:assign`, `issue:delete`, `comment:create`, `comment:update`, `comment:delete`.
+  - **admin**: todo sobre issues de su org.
+  - **member**: crear (forzando `assignee_id = su propio id`), editar solo issues asignados a él (title, description, labels, status, priority), **no** cambiar `assignee_id`, **no** borrar.
+- [ ] Helper `getIssueForUser(user, id)`: busca por `id AND org_id`; si no existe → `NOT_FOUND`.
+- [ ] Server functions: `listIssues`, `getIssue`, `createIssue`, `updateIssue`, `deleteIssue`, `listOrgUsers` (para el selector de assignee; solo de la org).
+- [ ] `listIssues`: `page`, `pageSize` (máx. 100), filtros combinables `status`, `priority`, `assignee` (id | `unassigned`), búsqueda `q` con `ILIKE` en title y description (escapar `%` y `_`), orden `updated_at desc`. Devuelve `{ items, total, page, pageSize }`.
+- [ ] Validaciones: `title` trim y no vacío, defaults `todo`/`med`, `assignee_id` debe pertenecer a la misma org.
+- [ ] `updated_at` se actualiza en cada cambio efectivo.
+- 🟢 Commit: `feat(issues): crud with org isolation and role permissions`
+
+### Fase 7 — Historial transaccional (~1 h) [P0]
+- [ ] En `createIssue`: `db.transaction` → insert issue + insert evento `created`.
+- [ ] En `updateIssue`: `db.transaction` → leer issue (con `for update`), validar permisos, calcular **diff real**; solo por cada campo de `status`/`priority`/`assignee_id` que **cambió efectivamente** insertar evento (`type`, `from_value`, `to_value`, `actor_id`). Si no hay cambios → no hay eventos. Si se rechaza (permiso/validación) → no hay escritura ni eventos.
+- [ ] `listIssueEvents(issueId)` solo lectura, filtrado por org. Sin endpoints de editar/borrar eventos.
+- [ ] El delete de issue borra en cascada comentarios y eventos.
+- 🟢 Commit: `feat(history): transactional activity log`
+
+### Fase 8 — Comentarios (~45 min) [P0]
+- [ ] `listComments(issueId)` (con nombre del autor), `createComment`, `updateComment`, `deleteComment`.
+- [ ] Cualquier usuario de la org puede comentar issues de su org; **solo el autor** edita o borra (incluso si otro es admin).
+- [ ] Siempre verificar que el issue pertenece a la org del usuario.
+- 🟢 Commit: `feat(comments): crud with author-only edit/delete`
+
+### Fase 9 — Frontend: base y listado (~2 h 15) [P0]
+- [ ] Layout con header (usuario, org, rol, logout) y navegación Lista / Kanban. `QueryClientProvider`, `Toaster`.
+- [ ] Capa `api` del cliente: manejo uniforme de errores (por `code`): 401 → login, 403 → toast "sin permiso", 400 → errores por campo, 500 → mensaje genérico.
+- [ ] Vista **Lista**: tabla/tarjetas, filtros (status, priority, assignee, búsqueda con debounce), paginación server-side, estados **loading** (skeleton), **vacío**, **error** (con reintentar).
+- [ ] Filtros y página reflejados en la URL (search params de TanStack Router) → compartible y fácil de testear.
+- [ ] Formulario crear/editar issue (react-hook-form opcional) con validación zod del mismo esquema que el servidor; toasts de éxito/error.
+- [ ] Permisos en UI: ocultar/deshabilitar crear/editar/asignar/borrar según `can` del cliente (derivado del rol/usuario). Recordar: el servidor igual lo valida.
+- [ ] Mutaciones invalidan queries para mantener coherencia lista ↔ detalle ↔ kanban.
+- 🟢 Commit: `feat(ui): issue list with filters and pagination`
+
+### Fase 10 — Detalle, comentarios e historial en UI (~1 h 30) [P0]
+- [ ] Detalle en modal (o ruta `/issues/$id`): título, descripción con **markdown renderizado**, metadatos, edición según permisos.
+- [ ] Sección comentarios: listar (autor + fecha), crear; editar/borrar solo en los propios.
+- [ ] Sección historial: lista cronológica "X cambió status de `todo` a `in_progress` · fecha".
+- [ ] Estados loading / vacío / error en cada sección.
+- 🟢 Commit: `feat(ui): issue detail with comments and history`
+
+### Fase 11 — Kanban con actualización optimista (~1 h 30) [P0]
+- [ ] 3 columnas: To do / In progress / Done (consultas por columna con los mismos filtros, o una consulta con `pageSize` alto; documentar la decisión).
+- [ ] Drag & drop con `@dnd-kit` (sensores de pointer **y** touch). Solo se puede arrastrar una tarjeta si `can(update)`; si no, no es draggable (y se explica con tooltip).
+- [ ] `useMutation` con patrón optimista: `onMutate` (cancelar queries, guardar snapshot, mover tarjeta) → `onError` (restaurar snapshot + toast claro) → `onSettled` (invalidar).
+- [ ] Recargar la página debe mostrar el estado persistido.
+- [ ] Click en tarjeta abre el detalle (fase 10).
+- 🟢 Commit: `feat(ui): kanban board with optimistic updates`
+
+### Fase 12 — Pulido responsive y UX (~45 min) [P0]
+- [ ] Revisar en móvil (≈375 px): filtros colapsables, kanban con scroll horizontal o columnas apiladas, modales usables.
+- [ ] Feedback de éxito/error en todas las acciones. Botones deshabilitados mientras guardan.
+- [ ] Accesibilidad básica: labels en inputs, foco visible, `aria-label` en botones de icono.
+- 🟢 Commit: `style(ui): responsive polish and feedback states`
+
+### Fase 13 — Pruebas obligatorias (~2 h) [P0]
+Preparar BD de prueba: `TEST_DATABASE_URL` apuntando a un Postgres **aislado** (Docker local `postgres:16` o instalación local; **nunca** la BD de Supabase de producción). Script `db:reset:test` que migra y limpia. Documentar en README.
+
+**Servidor** (`tests/server/*.test.ts`, llamando a las funciones/handlers reales contra la BD de prueba):
+- [ ] Sin sesión → `UNAUTHENTICATED` en listar/crear/editar/borrar.
+- [ ] Usuario de Acme no puede leer ni modificar issue/comentario/historial de Beta (aunque use su ID) → `NOT_FOUND`.
+- [ ] Member: crea solo asignado a sí mismo; edita solo los suyos; no reasigna; no borra. Admin: puede todo en su org.
+- [ ] Comentarios: otro usuario (incluso admin) no puede editar/borrar un comentario ajeno.
+- [ ] Registro: nunca crea admin aunque se envíe `role: 'admin'`.
+
+**Persistencia** (`tests/server/history.test.ts`):
+- [ ] Cambiar status guarda el nuevo estado **y** el evento con from/to correctos.
+- [ ] Si falla el insert del historial (forzar el fallo, p. ej. mock/spy o FK inválida), el cambio del issue **no** queda aplicado (rollback).
+- [ ] Una operación rechazada no crea eventos.
+
+**Interfaz** (`tests/ui/*.test.tsx`, Testing Library, servidor mockeado):
+- [ ] Interacción de filtros o paginación (p. ej. elegir status "done" cambia la petición y la lista; "siguiente página" pide `page=2`).
+- [ ] Kanban: al mover una tarjeta y fallar el servidor, la tarjeta **vuelve** a su columna y aparece el mensaje de error.
+- 🟢 Commit: `test: server, persistence and ui behavior tests`
+
+### Fase 14 — CI completo (~30 min) [P0]
+- [ ] Confirmar que el pipeline ejecuta TODO (lint, typecheck, migraciones, tests, build) y queda **verde** en el último commit.
+- [ ] Copiar el enlace del run exitoso (para el README).
+- 🟢 Commit (si hay ajustes): `ci: finalize pipeline`
+
+### Fase 15 — Despliegue final y verificación E2E (~1 h) [P0]
+- [ ] Aplicar migraciones y seed en Supabase (producción) si no están al día.
+- [ ] Desplegar rama principal en Vercel y recorrer **el flujo completo en la URL pública**, con las dos orgs:
+  - registro y login, logout, expiración
+  - admin vs member (UI y servidor), aislamiento Acme/Beta
+  - CRUD de issues, filtros, paginación, búsqueda
+  - kanban + optimista + persistencia al recargar
+  - comentarios (solo autor) e historial
+- [ ] Verificar que los datos persisten entre sesiones y reinicios.
+- [ ] Anotar limitaciones del plan gratuito (cold start de funciones, pausa de proyectos Supabase tras inactividad: **abrir el panel de Supabase el día de la entrega para asegurar que no esté pausado**).
+
+### Fase 16 — README.md (~45 min) [P0]
+Secciones obligatorias del PDF:
+- [ ] URL desplegada + credenciales (admin y 2 members de **Acme** y **Beta**).
+- [ ] Instalación y ejecución local, variables de entorno, migraciones, seed y cómo correr pruebas (incluida la BD de prueba).
+- [ ] Pasos para reproducir el despliegue y servicios usados (Vercel + Supabase + GitHub Actions).
+- [ ] Enlace al pipeline exitoso del commit entregado.
+- [ ] Descripción de las funciones de servidor/endpoints.
+- [ ] Decisiones técnicas y trade-offs (ver lista de ideas abajo).
+- [ ] **Uso de IA**: herramientas (Claude Code), qué se delegó, cómo se verificó (tests, revisión manual de diff, pruebas manuales en el despliegue). Declarar plantillas/código reutilizado (shadcn/ui, etc.).
+- [ ] Limitaciones y requisitos incompletos, con honestidad.
+- 🟢 Commit: `docs: readme`
+
+### Fase 17 — Preparación para la revisión en vivo (~30 min) [P1]
+- [ ] Repasar la guía privada de estudio.
+- [ ] Practicar 2–3 cambios pequeños en vivo (ej. agregar un nuevo valor de priority, añadir un filtro, cambiar una regla de permiso) y saber en qué archivos tocar.
+
+### Extras (solo si TODO lo anterior está verde) [P2]
+`docker-compose.yml` para Postgres local → CD automático a Vercel → adjuntos → realtime.
+
+---
+
+## 3. Calendario sugerido (24 h, con sueño y margen)
+
+| Bloque | Fases | Meta |
+|---|---|---|
+| Hoy, primeras ~4 h | 0–4 | Esqueleto desplegado + CI verde |
+| Siguientes ~5 h | 5–8 | Backend completo (auth, permisos, issues, historial, comentarios) |
+| Dormir | — | Dormir de verdad; rinde más que 4 h extra cansado |
+| Mañana, ~5 h | 9–12 | UI completa |
+| Mañana, ~3 h | 13–14 | Tests + CI verde |
+| Última ~2 h antes de las 5 p. m. | 15–17 | Verificación en producción + README. **Congelar código a las 3:30 p. m.** |
+
+**Checkpoints duros:** a las 12:00 a. m. debe existir backend con tests de permisos; a las 12:00 m. de mañana la UI debe estar completa; a las 3:30 p. m. se congela el código y solo se arreglan bugs críticos y README.
+
+## 4. Lista de recortes si el tiempo aprieta (en este orden)
+1. Pulido visual y accesibilidad extra.
+2. Kanban con una sola consulta (`pageSize` alto) en vez de por columna.
+3. Rate limit: versión simple en memoria (ya es la propuesta).
+4. Búsqueda `ILIKE` simple (sin índices ni trigram).
+**Nunca recortar:** autorización en servidor, aislamiento por org, transacción de historial, los tests mínimos listados, CI verde, despliegue con URL, README.
+
+## 5. Ideas de decisiones/trade-offs para el README
+- Supabase solo como Postgres; auth propia por requerir `org_id` y `role` en el modelo.
+- JWT en cookie httpOnly (mitiga XSS) con `SameSite=Lax` (mitiga CSRF básico); re-login al expirar en lugar de refresh tokens.
+- 404 en lugar de 403 en recursos de otra org (no filtra existencia).
+- Rate limit en memoria: simple, pero por instancia en serverless.
+- `ILIKE` para búsqueda: suficiente para el volumen; con más datos se usaría full-text search/trigram.
+- Paginación por offset (simple); con más volumen, keyset.
+- Pooler en modo transacción → `prepare: false`.
+- Historial dentro de la misma transacción que el cambio (atomicidad).
+- Eventos en cascada al borrar el issue (permitido por el enunciado).
+
+## 6. Definición de "terminado" (checklist final)
+- [ ] URL pública funciona con credenciales de README (6 usuarios: 3 por org).
+- [ ] Todos los requisitos de las páginas 1–2 del PDF verificados en producción.
+- [ ] `pnpm lint && pnpm typecheck && pnpm test && pnpm build` pasan en local.
+- [ ] CI verde en el commit entregado, enlace en README.
+- [ ] Migraciones Drizzle en el repo; seed reproducible (≥30 issues).
+- [ ] `.env.example` presente, ningún secreto en el repo (revisar historial de git).
+- [ ] README completo y honesto.
