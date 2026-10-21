@@ -200,9 +200,11 @@ Mejoras tras la prueba manual en móvil:
 - 🟢 Commit: `feat(ui): kanban board with optimistic updates`
 
 ### Fase 12 — Pulido responsive y UX (~45 min) [P0]
-- [ ] Revisar en móvil (≈375 px): filtros colapsables, kanban con scroll horizontal o columnas apiladas, modales usables.
-- [ ] Feedback de éxito/error en todas las acciones. Botones deshabilitados mientras guardan.
-- [ ] Accesibilidad básica: labels en inputs, foco visible, `aria-label` en botones de icono.
+- [x] Revisar en móvil (≈375 px): filtros colapsables (la búsqueda siempre visible y un botón «Filtros (n)» abre los selectores), kanban con scroll horizontal por columnas, modales usables con teclado (el formulario se ajusta al área visible), la fecha de la lista plegada bajo el título y paginación arriba y abajo.
+- [x] Feedback de éxito/error en todas las acciones (avisos al crear, editar, borrar, comentar y mover; errores por campo en los formularios; avisos específicos si el issue ya fue borrado por otra persona). Botones deshabilitados mientras guardan.
+- [x] Accesibilidad básica: labels en inputs, foco visible en enlaces y botones propios, `aria-label` en botones de icono, `aria-expanded`/`aria-controls` en «Filtros», título de tabla para lectores de pantalla, enlace «Saltar al contenido» y botones táctiles más grandes en celular.
+- [x] Selector (`NativeSelect`) con flecha propia y su espacio, en lugar de la del navegador (que se pegaba al borde y no obedecía al padding).
+- [x] Listas al día: si un issue fue borrado por otra persona, la lista y el tablero se actualizan al descubrirlo (al abrir el detalle, editar o borrar) y también al volver a la pestaña.
 - 🟢 Commit: `style(ui): responsive polish and feedback states`
 
 ### Fase 13 — Pruebas obligatorias (~2 h) [P0]
