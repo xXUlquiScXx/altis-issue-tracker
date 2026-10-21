@@ -105,7 +105,7 @@ Seguridad extra opcional: FK compuestas o chequeo en servidor de que `assignee.o
 > Se crea ya para que cada push se valide desde el principio.
 - [x] `.github/workflows/ci.yml`, disparado en `push` y `pull_request`.
 - [x] Job con `services: postgres:16` (env `POSTGRES_PASSWORD`, `POSTGRES_DB=test`, health check) y pasos: checkout → pnpm + Node (`actions/setup-node` con `node-version-file: .nvmrc` y caché de pnpm) → `pnpm install --frozen-lockfile` → `lint` → `typecheck` → `db:migrate` (contra el service, vía `TEST_DATABASE_URL`) → `test` → `build`.
-- [ ] Verificar que corre verde (aunque todavía haya 0–1 tests; agregar un test trivial si Vitest falla por "no tests"). Se añadió `tests/server/migrations.test.ts` (tablas creadas + check del título) en vez de un test vacío.
+- [x] Verificar que corre verde (aunque todavía haya 0–1 tests; agregar un test trivial si Vitest falla por "no tests"). Se añadió `tests/server/migrations.test.ts` (tablas creadas + check del título) en vez de un test vacío. Primer run verde: https://github.com/xXUlquiScXx/altis-issue-tracker/actions/runs/39530460906
 - 🟢 Commit: `ci: github actions pipeline with postgres service`
 
 ### Fase 5 — Autenticación (~1 h 30) [P0]
