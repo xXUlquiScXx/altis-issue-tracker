@@ -20,13 +20,19 @@ import { loginSchema } from '@/lib/schemas'
 import { login } from '@/server/auth/functions'
 
 export const Route = createFileRoute('/login')({
+  // ?redirect=/issues/123: página a la que volver después de entrar.
+  validateSearch: (search: Record<string, unknown>) => ({
+    redirect: typeof search.redirect === 'string' ? search.redirect : undefined,
+  }),
   component: LoginPage,
 })
 
 function LoginPage() {
   const rememberedEmail = useRememberedEmail()
+  const { redirect } = Route.useSearch()
   const { fieldErrors, formError, pending, handleSubmit } = useAuthForm({
     schema: loginSchema,
+    redirectTo: redirect,
     submit: async (data, form) => {
       await login({ data })
       // Solo se guarda el correo cuando el login salió bien y el checkbox está marcado.
@@ -99,7 +105,7 @@ function LoginPage() {
             </Button>
             <p className="text-sm text-muted-foreground">
               ¿No tienes cuenta?{' '}
-              <Link to="/register" className="underline">
+              <Link to="/register" search={{ redirect }} className="underline">
                 Regístrate
               </Link>
             </p>

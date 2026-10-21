@@ -18,6 +18,7 @@ import type { IssueDto, IssuePage, SessionUser } from '@/lib/types'
 vi.mock('@/server/issues/functions', () => ({
   listIssues: vi.fn(),
   listOrgUsers: vi.fn(),
+  getIssue: vi.fn(),
   createIssue: vi.fn(),
   updateIssue: vi.fn(),
   deleteIssue: vi.fn(),
@@ -25,6 +26,7 @@ vi.mock('@/server/issues/functions', () => ({
 const fns = await import('@/server/issues/functions')
 const listIssues = vi.mocked(fns.listIssues)
 const listOrgUsers = vi.mocked(fns.listOrgUsers)
+const getIssue = vi.mocked(fns.getIssue)
 const createIssue = vi.mocked(fns.createIssue)
 const deleteIssue = vi.mocked(fns.deleteIssue)
 
@@ -55,7 +57,7 @@ const ALL: IssueDto[] = Array.from({ length: 45 }, (_, i) => {
   return {
     id: `i-${i}`,
     title: i === 3 ? 'Login roto' : `Issue ${String(i + 1).padStart(2, '0')}`,
-    description: null,
+    description: i === 1 ? '## Pasos\n\n1. Abrir\n2. **Guardar**' : null,
     status: STATUSES[i % 3]!,
     priority: PRIORITIES[(i * 7) % 3]!,
     assigneeId: assignee?.id ?? null,
@@ -91,6 +93,8 @@ function fakeServer({ data }: { data: ListData }): Promise<IssuePage> {
   })
 }
 
+const onViewIssue = vi.fn()
+
 // Hace de "ruta": guarda los filtros en estado, como la URL en la app real.
 function Harness({ user }: { user: SessionUser }) {
   const [filters, setFilters] = useState<IssueSearch>({})
@@ -101,6 +105,8 @@ function Harness({ user }: { user: SessionUser }) {
       onFiltersChange={(patch) =>
         setFilters((current) => ({ ...current, ...patch }))
       }
+      issueHref={(issue) => `/issues/${issue.id}`}
+      onViewIssue={onViewIssue}
     />
   )
 }
@@ -120,6 +126,8 @@ const lastRequest = () => listIssues.mock.calls.at(-1)?.[0]?.data
 
 beforeEach(() => {
   listIssues.mockImplementation(fakeServer as never)
+  getIssue.mockImplementation((({ data }: { data: { id: string } }) =>
+    Promise.resolve(ALL.find((issue) => issue.id === data.id)!)) as never)
   listOrgUsers.mockResolvedValue([
     { id: admin.id, name: admin.name, role: 'admin' },
     { id: ana.id, name: ana.name, role: 'member' },
@@ -368,5 +376,55 @@ describe('issue form and delete', () => {
     await waitFor(() =>
       expect(deleteIssue).toHaveBeenCalledWith({ data: { id: 'i-0' } }),
     )
+  })
+})
+
+describe('link to the issue detail', () => {
+  it('lets a member open an issue that is not assigned to them', async () => {
+    const user = userEvent.setup()
+    renderView(ana)
+    await screen.findByText('Issue 01')
+    // Issue 01 está sin asignar: Ana no tiene acciones en esa fila...
+    expect(screen.queryByRole('button', { name: 'Editar Issue 01' })).toBeNull()
+
+    // ...pero sí puede abrir su detalle.
+    await user.click(screen.getByText('Issue 01'))
+    expect(onViewIssue).toHaveBeenCalledTimes(1)
+    expect(onViewIssue).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'i-0' }),
+    )
+  })
+
+  it('gives the title a real URL, so it can be copied or opened in a new tab', async () => {
+    renderView(ana)
+    const link = await screen.findByRole('link', { name: 'Issue 02' })
+    expect(link.getAttribute('href')).toBe('/issues/i-1')
+  })
+
+  it('opens when tapping anywhere on the title cell, only once', async () => {
+    const user = userEvent.setup()
+    renderView(ana)
+    await screen.findByText('Issue 02')
+
+    await user.click(screen.getByText('Issue 02').closest('td')!)
+    expect(onViewIssue).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not navigate twice when the title link itself is clicked', async () => {
+    const user = userEvent.setup()
+    renderView(ana)
+    await user.click(await screen.findByRole('link', { name: 'Issue 02' }))
+    expect(onViewIssue).toHaveBeenCalledTimes(1)
+  })
+
+  it('leaves Ctrl/Cmd+click to the browser (new tab) instead of navigating here', async () => {
+    const user = userEvent.setup()
+    renderView(ana)
+    const link = await screen.findByRole('link', { name: 'Issue 02' })
+
+    await user.keyboard('{Control>}')
+    await user.click(link)
+    await user.keyboard('{/Control}')
+    expect(onViewIssue).not.toHaveBeenCalled()
   })
 })

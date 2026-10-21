@@ -26,6 +26,10 @@ interface Props {
   filters: IssueSearch
   // Cambia los filtros (en la app real, los escribe en la URL).
   onFiltersChange: (patch: Partial<IssueSearch>) => void
+  // Dirección de la página de detalle de un issue (para el enlace del título).
+  issueHref: (issue: IssueDto) => string
+  // Abre el detalle dentro de la app.
+  onViewIssue: (issue: IssueDto) => void
 }
 
 const NO_FILTERS: Partial<IssueSearch> = {
@@ -36,7 +40,13 @@ const NO_FILTERS: Partial<IssueSearch> = {
   page: undefined,
 }
 
-export function IssuesView({ user, filters, onFiltersChange }: Props) {
+export function IssuesView({
+  user,
+  filters,
+  onFiltersChange,
+  issueHref,
+  onViewIssue,
+}: Props) {
   const input = toListInput(filters)
   const { data, isPending, isError, error, refetch, isPlaceholderData } =
     useQuery({
@@ -130,6 +140,8 @@ export function IssuesView({ user, filters, onFiltersChange }: Props) {
             <IssueTable
               issues={data.items}
               user={user}
+              issueHref={issueHref}
+              onView={onViewIssue}
               onEdit={(issue) => setForm({ open: true, issue })}
               onDelete={setIssueToDelete}
             />

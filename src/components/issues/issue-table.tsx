@@ -1,4 +1,5 @@
 import { Pencil, Trash2 } from 'lucide-react'
+import type { MouseEvent } from 'react'
 import { Button } from '@/components/ui/button'
 import {
   Table,
@@ -16,11 +17,33 @@ import { PriorityBadge, StatusBadge } from './issue-badges'
 interface Props {
   issues: IssueDto[]
   user: SessionUser
+  // Dirección real del detalle: sirve para abrir en otra pestaña o copiar el enlace.
+  issueHref: (issue: IssueDto) => string
+  onView: (issue: IssueDto) => void
   onEdit: (issue: IssueDto) => void
   onDelete: (issue: IssueDto) => void
 }
 
-export function IssueTable({ issues, user, onEdit, onDelete }: Props) {
+// Clic normal: se navega dentro de la app sin recargar. Con Ctrl, Cmd, Shift o
+// clic central se deja que el navegador abra el enlace en otra pestaña o ventana.
+function isPlainClick(event: MouseEvent) {
+  return (
+    event.button === 0 &&
+    !event.metaKey &&
+    !event.ctrlKey &&
+    !event.shiftKey &&
+    !event.altKey
+  )
+}
+
+export function IssueTable({
+  issues,
+  user,
+  issueHref,
+  onView,
+  onEdit,
+  onDelete,
+}: Props) {
   return (
     <div className="overflow-x-auto rounded-lg border">
       <Table>
@@ -43,8 +66,28 @@ export function IssueTable({ issues, user, onEdit, onDelete }: Props) {
 
             return (
               <TableRow key={issue.id}>
-                <TableCell className="max-w-xs whitespace-normal">
-                  <p className="font-medium">{issue.title}</p>
+                {/* Toda la celda abre el detalle (cómodo con el dedo). El título es
+                    un enlace real para teclado, lectores de pantalla y "abrir en
+                    otra pestaña". */}
+                <TableCell
+                  className="max-w-xs cursor-pointer whitespace-normal hover:bg-muted/50"
+                  onClick={(event) => {
+                    // Si el clic fue sobre el enlace, ya lo manejó el enlace.
+                    if ((event.target as HTMLElement).closest('a')) return
+                    onView(issue)
+                  }}
+                >
+                  <a
+                    href={issueHref(issue)}
+                    className="rounded font-medium hover:underline focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+                    onClick={(event) => {
+                      if (!isPlainClick(event)) return
+                      event.preventDefault()
+                      onView(issue)
+                    }}
+                  >
+                    {issue.title}
+                  </a>
                   {issue.labels.length > 0 && (
                     <p className="text-xs text-muted-foreground">
                       {issue.labels.join(' · ')}

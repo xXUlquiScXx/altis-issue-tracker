@@ -4,11 +4,14 @@ import type { z } from 'zod'
 import { parseApiError } from '@/lib/api-error'
 import { fieldErrorsFrom } from '@/lib/forms'
 import { apiErrorMessage, translateFields } from '@/lib/messages'
+import { safeRedirect } from '@/lib/safe-redirect'
 
 interface Options<S extends z.ZodType> {
   schema: S
   // Llama a la server function (login o register). Recibe los datos ya validados.
   submit: (data: z.output<S>, form: FormData) => Promise<unknown>
+  // Página a la que volver después de entrar (viene de la URL: se valida).
+  redirectTo?: string
 }
 
 // "Controlador" de los formularios de acceso: valida, envía, y maneja errores y
@@ -16,6 +19,7 @@ interface Options<S extends z.ZodType> {
 export function useAuthForm<S extends z.ZodType>({
   schema,
   submit,
+  redirectTo,
 }: Options<S>) {
   const router = useRouter()
   const navigate = useNavigate()
@@ -39,7 +43,9 @@ export function useAuthForm<S extends z.ZodType>({
     try {
       await submit(parsed.data, form)
       await router.invalidate()
-      await navigate({ to: '/' })
+      const destination = safeRedirect(redirectTo)
+      if (destination) router.history.push(destination)
+      else await navigate({ to: '/' })
     } catch (error) {
       const apiError = await parseApiError(error)
       setFieldErrors(translateFields(apiError.fields))

@@ -37,7 +37,10 @@ function RootComponent() {
   // Un cliente por pestaña (y por petición en el servidor): no se comparte caché.
   const [queryClient] = useState(() =>
     createQueryClient(() => {
-      void router.navigate({ to: '/login' })
+      void router.navigate({
+        to: '/login',
+        search: { redirect: router.state.location.href },
+      })
     }),
   )
 

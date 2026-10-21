@@ -15,6 +15,7 @@ import { Route as RegisterRouteImport } from './routes/register'
 import { Route as AuthedIndexRouteImport } from './routes/_authed/index'
 import { Route as AuthedKanbanRouteImport } from './routes/_authed/kanban'
 import { Route as ApiHealthRouteImport } from './routes/api/health'
+import { Route as AuthedIssuesIdRouteImport } from './routes/_authed/issues.$id'
 
 const AuthedRoute = AuthedRouteImport.update({
   id: '/_authed',
@@ -45,6 +46,11 @@ const ApiHealthRoute = ApiHealthRouteImport.update({
   path: '/api/health',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthedIssuesIdRoute = AuthedIssuesIdRouteImport.update({
+  id: '/issues/$id',
+  path: '/issues/$id',
+  getParentRoute: () => AuthedRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthedIndexRoute
@@ -52,6 +58,7 @@ export interface FileRoutesByFullPath {
   '/register': typeof RegisterRoute
   '/kanban': typeof AuthedKanbanRoute
   '/api/health': typeof ApiHealthRoute
+  '/issues/$id': typeof AuthedIssuesIdRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
@@ -59,6 +66,7 @@ export interface FileRoutesByTo {
   '/kanban': typeof AuthedKanbanRoute
   '/api/health': typeof ApiHealthRoute
   '/': typeof AuthedIndexRoute
+  '/issues/$id': typeof AuthedIssuesIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -68,12 +76,14 @@ export interface FileRoutesById {
   '/_authed/kanban': typeof AuthedKanbanRoute
   '/api/health': typeof ApiHealthRoute
   '/_authed/': typeof AuthedIndexRoute
+  '/_authed/issues/$id': typeof AuthedIssuesIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/login' | '/register' | '/kanban' | '/api/health'
+  fullPaths:
+    '/' | '/login' | '/register' | '/kanban' | '/api/health' | '/issues/$id'
   fileRoutesByTo: FileRoutesByTo
-  to: '/login' | '/register' | '/kanban' | '/api/health' | '/'
+  to: '/login' | '/register' | '/kanban' | '/api/health' | '/' | '/issues/$id'
   id:
     | '__root__'
     | '/_authed'
@@ -82,6 +92,7 @@ export interface FileRouteTypes {
     | '/_authed/kanban'
     | '/api/health'
     | '/_authed/'
+    | '/_authed/issues/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -135,17 +146,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiHealthRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authed/issues/$id': {
+      id: '/_authed/issues/$id'
+      path: '/issues/$id'
+      fullPath: '/issues/$id'
+      preLoaderRoute: typeof AuthedIssuesIdRouteImport
+      parentRoute: typeof AuthedRoute
+    }
   }
 }
 
 interface AuthedRouteChildren {
   AuthedKanbanRoute: typeof AuthedKanbanRoute
   AuthedIndexRoute: typeof AuthedIndexRoute
+  AuthedIssuesIdRoute: typeof AuthedIssuesIdRoute
 }
 
 const AuthedRouteChildren: AuthedRouteChildren = {
   AuthedKanbanRoute: AuthedKanbanRoute,
   AuthedIndexRoute: AuthedIndexRoute,
+  AuthedIssuesIdRoute: AuthedIssuesIdRoute,
 }
 
 const AuthedRouteWithChildren =

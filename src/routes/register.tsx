@@ -17,12 +17,18 @@ import { registerSchema } from '@/lib/schemas'
 import { register } from '@/server/auth/functions'
 
 export const Route = createFileRoute('/register')({
+  // ?redirect=/issues/123: página a la que volver después de entrar.
+  validateSearch: (search: Record<string, unknown>) => ({
+    redirect: typeof search.redirect === 'string' ? search.redirect : undefined,
+  }),
   component: RegisterPage,
 })
 
 function RegisterPage() {
+  const { redirect } = Route.useSearch()
   const { fieldErrors, formError, pending, handleSubmit } = useAuthForm({
     schema: registerSchema,
+    redirectTo: redirect,
     submit: (data) => register({ data }),
   })
 
@@ -90,7 +96,7 @@ function RegisterPage() {
             </Button>
             <p className="text-sm text-muted-foreground">
               ¿Ya tienes cuenta?{' '}
-              <Link to="/login" className="underline">
+              <Link to="/login" search={{ redirect }} className="underline">
                 Inicia sesión
               </Link>
             </p>
