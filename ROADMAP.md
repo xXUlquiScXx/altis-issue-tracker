@@ -233,7 +233,7 @@ Preparar BD de prueba: `TEST_DATABASE_URL` apuntando a un Postgres **aislado** (
 ### Fase 14 — CI completo (~30 min) [P0]
 - [x] Confirmar que el pipeline ejecuta TODO (lint, typecheck, migraciones, tests, build) y queda **verde** en el último commit. Verificado con la API de GitHub en el run de `d0b5a06`: checkout → pnpm y Node (desde `.nvmrc`) → `install --frozen-lockfile` → lint → typecheck → `db:migrate` (sobre su Postgres 16 temporal) → test → build, todos en `success`, 69 s.
 - [x] Runner fijado a `ubuntu-24.04` (en vez de `ubuntu-latest`, que GitHub está migrando a Ubuntu 26 desde el 19-oct-2026). Verificado: los runs posteriores al cambio (`5cee1d1` y `be0d58a`) salieron en verde.
-- [x] Enlace del run exitoso para el README (último commit de código con orden manual, `be0d58a`; el README añadirá además el badge y el enlace al workflow): https://github.com/xXUlquiScXx/altis-issue-tracker/actions/runs/39642953445
+- [x] Enlace del run exitoso para el README (run #20, commit `7ad2d26`, verde; el último commit de código es `bf5b545` con orden manual, `7ad2d26` solo cambió docs; el README añadirá además el badge y el enlace al workflow): https://github.com/xXUlquiScXx/altis-issue-tracker/actions/runs/39645226386
 - 🟢 Commit (si hay ajustes): `ci: finalize pipeline`
 
 ### Fase 15 — Despliegue final y verificación E2E (~1 h) [P0]
@@ -250,21 +250,21 @@ Preparar BD de prueba: `TEST_DATABASE_URL` apuntando a un Postgres **aislado** (
   - [x] CRUD de issues desde la interfaz: crear, editar, borrar
   - [x] kanban + optimista + persistencia al recargar (arrastrar de verdad)
   - [x] comentarios (publicar, editar, borrar) e historial después de editar
-  - [ ] expiración de sesión (la cookie caduca a las 2 h; el token vencido se rechaza con `401`, probado en tests)
+  - [x] expiración de sesión (la cookie caduca a las 2 h; el token vencido se rechaza con `401`, probado en tests; además, una sesión de admin dejada abierta en reposo volvió sola al login)
   > Las comprobaciones marcadas se hicieron con un script de solo lectura contra la URL pública (56 comprobaciones, 0 fallos). Las pendientes escriben datos o dependen del navegador.
-- [ ] Verificar que los datos persisten entre sesiones y reinicios.
+- [x] Verificar que los datos persisten entre sesiones y reinicios.
 - [ ] Anotar limitaciones del plan gratuito (cold start de funciones, pausa de proyectos Supabase tras inactividad: **abrir el panel de Supabase el día de la entrega para asegurar que no esté pausado**). Medido hoy: `/api/health` y la lista tardan entre 0,5 y 3,5 s según haya o no una instancia caliente; la región de la función en Vercel debería ser la más cercana a Supabase (`us-east-1` ↔ Washington D.C., `iad1`): revisar en Vercel → Settings → Functions → Region. El límite de intentos de login es por instancia (en memoria).
 
 ### Fase 16 — README.md (~45 min) [P0]
 Secciones obligatorias del PDF:
-- [ ] URL desplegada + credenciales (admin y 2 members de **Acme** y **Beta**).
-- [ ] Instalación y ejecución local, variables de entorno, migraciones, seed y cómo correr pruebas (incluida la BD de prueba).
-- [ ] Pasos para reproducir el despliegue y servicios usados (Vercel + Supabase + GitHub Actions).
-- [ ] Enlace al pipeline exitoso del commit entregado.
-- [ ] Descripción de las funciones de servidor/endpoints.
-- [ ] Decisiones técnicas y trade-offs (ver lista de ideas abajo).
-- [ ] **Uso de IA**: herramientas (Claude Code), qué se delegó, cómo se verificó (tests, revisión manual de diff, pruebas manuales en el despliegue). Declarar plantillas/código reutilizado (shadcn/ui, etc.).
-- [ ] Limitaciones y requisitos incompletos, con honestidad.
+- [x] URL desplegada + credenciales (admin y 2 members de **Acme** y **Beta**).
+- [x] Instalación y ejecución local, variables de entorno, migraciones, seed y cómo correr pruebas (incluida la BD de prueba).
+- [x] Pasos para reproducir el despliegue y servicios usados (Vercel + Supabase + GitHub Actions).
+- [ ] Enlace al pipeline exitoso del commit entregado. (El README ya lleva el badge, el enlace al workflow y el run #20; tras hacer push del README, cambiar el enlace del run por el del run nuevo en verde.)
+- [x] Descripción de las funciones de servidor/endpoints.
+- [x] Decisiones técnicas y trade-offs (ver lista de ideas abajo).
+- [x] **Uso de IA**: herramientas (Claude Code), qué se delegó, cómo se verificó (tests, revisión manual de diff, pruebas manuales en el despliegue). Declarar plantillas/código reutilizado (shadcn/ui, etc.).
+- [x] Limitaciones y requisitos incompletos, con honestidad.
 - 🟢 Commit: `docs: readme`
 
 ### Fase 17 — Preparación para la revisión en vivo (~30 min) [P1]
