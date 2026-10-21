@@ -11,8 +11,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { IssueDetailPage } from '@/components/issues/issue-detail-page'
 import type { IssueDto, SessionUser } from '@/lib/types'
 
+vi.mock('@/server/comments/functions', () => ({
+  listComments: vi.fn(),
+  createComment: vi.fn(),
+  updateComment: vi.fn(),
+  deleteComment: vi.fn(),
+}))
 vi.mock('@/server/issues/functions', () => ({
   getIssue: vi.fn(),
+  listIssueEvents: vi.fn(),
   listOrgUsers: vi.fn(),
   createIssue: vi.fn(),
   updateIssue: vi.fn(),
@@ -21,6 +28,9 @@ vi.mock('@/server/issues/functions', () => ({
 const fns = await import('@/server/issues/functions')
 const getIssue = vi.mocked(fns.getIssue)
 const listOrgUsers = vi.mocked(fns.listOrgUsers)
+const listIssueEvents = vi.mocked(fns.listIssueEvents)
+const commentFns = await import('@/server/comments/functions')
+const listComments = vi.mocked(commentFns.listComments)
 
 const ORG = 'org-1'
 const admin: SessionUser = {
@@ -76,6 +86,8 @@ const errorResponse = (code: string, message: string, status: number) =>
 
 beforeEach(() => {
   listOrgUsers.mockResolvedValue([])
+  listComments.mockResolvedValue([])
+  listIssueEvents.mockResolvedValue([])
 })
 
 afterEach(() => {

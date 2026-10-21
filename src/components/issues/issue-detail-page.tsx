@@ -14,7 +14,9 @@ import type { IssueDto, SessionUser } from '@/lib/types'
 import { can } from '@/server/authz'
 import { getIssue } from '@/server/issues/functions'
 import { PriorityBadge, StatusBadge } from './issue-badges'
+import { IssueComments } from './issue-comments'
 import { IssueFormDialog } from './issue-form-dialog'
+import { IssueHistory } from './issue-history'
 
 interface Props {
   issueId: string
@@ -198,6 +200,10 @@ function DetailContent({
           <p className="text-sm text-muted-foreground">Sin descripción.</p>
         )}
       </section>
+
+      {/* Cada sección carga sus propios datos, con sus estados de carga y error. */}
+      <IssueComments issueId={issue.id} user={user} />
+      <IssueHistory issueId={issue.id} />
 
       <IssueFormDialog
         open={editing}
