@@ -175,8 +175,8 @@ export async function createIssueForUser(
   })
 }
 
-// Un evento por cada campo de seguimiento (status, priority, assignee) que cambió.
-// Cambiar título, descripción o labels actualiza el issue pero no genera eventos.
+// Un evento por cada campo de seguimiento (status, priority, assignee, título y
+// descripción) que cambió. Las labels actualizan el issue pero no generan evento.
 function buildChangeEvents(
   current: typeof issues.$inferSelect,
   changes: Partial<typeof issues.$inferInsert>,
@@ -214,6 +214,18 @@ function buildChangeEvents(
       fromValue: current.assigneeId,
       toValue: changes.assigneeId ?? null,
     })
+  }
+  if (changes.title) {
+    events.push({
+      ...base,
+      type: 'title_changed',
+      fromValue: current.title,
+      toValue: changes.title,
+    })
+  }
+  // De la descripción no se guarda el texto (puede ser larguísimo): solo que cambió.
+  if ('description' in changes) {
+    events.push({ ...base, type: 'description_changed' })
   }
   return events
 }

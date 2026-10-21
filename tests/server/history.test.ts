@@ -136,15 +136,77 @@ describe.skipIf(!hasTestDb)('issue history', () => {
       })
     })
 
-    it('does not create events for title, description or labels', async () => {
+    it('records the old and new title when the title changes', async () => {
+      const issue = await create(f.ana, { title: 'Título viejo' })
+      await update(f.ana, { id: issue.id, title: '  Título nuevo  ' })
+
+      const history = await events(f.ana, issue.id)
+      expect(history.map((e) => e.type)).toEqual(['created', 'title_changed'])
+      expect(history[1]).toMatchObject({
+        fromValue: 'Título viejo',
+        toValue: 'Título nuevo',
+        actorId: f.ana.id,
+      })
+    })
+
+    it('records that the description changed, without storing its text', async () => {
+      const issue = await create(f.ana, { description: 'versión 1' })
+      await update(f.ana, {
+        id: issue.id,
+        description: 'versión 2, mucho más larga',
+      })
+      // Vaciarla también cuenta como cambio.
+      await update(f.ana, { id: issue.id, description: '   ' })
+
+      const history = await events(f.ana, issue.id)
+      expect(history.map((e) => e.type)).toEqual([
+        'created',
+        'description_changed',
+        'description_changed',
+      ])
+      for (const event of history.slice(1)) {
+        expect(event.fromValue).toBeNull()
+        expect(event.toValue).toBeNull()
+      }
+    })
+
+    it('records title and description together with the other tracked changes', async () => {
+      const issue = await create(f.acmeAdmin, { title: 'A' })
+      await update(f.acmeAdmin, {
+        id: issue.id,
+        title: 'B',
+        description: 'algo',
+        status: 'done',
+      })
+      const types = (await events(f.acmeAdmin, issue.id)).map((e) => e.type)
+      expect(types).toEqual([
+        'created',
+        'status_changed',
+        'title_changed',
+        'description_changed',
+      ])
+    })
+
+    it('does not create events when the title or description are sent unchanged', async () => {
+      const issue = await create(f.ana, {
+        title: 'Igual',
+        description: 'mismo texto',
+      })
+      await update(f.ana, {
+        id: issue.id,
+        title: 'Igual',
+        description: 'mismo texto',
+      })
+      expect(await events(f.ana, issue.id)).toHaveLength(1)
+    })
+
+    it('does not create events for labels', async () => {
       const issue = await create(f.acmeAdmin)
       const updated = await update(f.acmeAdmin, {
         id: issue.id,
-        title: 'Otro título',
-        description: 'texto',
         labels: ['bug'],
       })
-      expect(updated.title).toBe('Otro título')
+      expect(updated.labels).toEqual(['bug'])
       expect(await events(f.acmeAdmin, issue.id)).toHaveLength(1)
     })
 

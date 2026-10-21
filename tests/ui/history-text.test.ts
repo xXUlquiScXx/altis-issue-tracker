@@ -39,6 +39,17 @@ describe('describeEvent', () => {
     ).toBe('cambió la prioridad de «Media» a «Alta»')
   })
 
+  it('describes title and description changes', () => {
+    expect(
+      describeEvent(
+        event({ type: 'title_changed', fromValue: 'Viejo', toValue: 'Nuevo' }),
+      ),
+    ).toBe('cambió el título de «Viejo» a «Nuevo»')
+    expect(describeEvent(event({ type: 'description_changed' }))).toBe(
+      'cambió la descripción',
+    )
+  })
+
   it('describes assigning, unassigning and reassigning with names', () => {
     expect(
       describeEvent(

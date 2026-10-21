@@ -18,6 +18,10 @@ export function describeEvent(event: IssueEventDto): string {
       return `cambió el estado de «${label(STATUS_LABEL, event.fromValue)}» a «${label(STATUS_LABEL, event.toValue)}»`
     case 'priority_changed':
       return `cambió la prioridad de «${label(PRIORITY_LABEL, event.fromValue)}» a «${label(PRIORITY_LABEL, event.toValue)}»`
+    case 'title_changed':
+      return `cambió el título de «${event.fromValue ?? '—'}» a «${event.toValue ?? '—'}»`
+    case 'description_changed':
+      return 'cambió la descripción'
     case 'assignee_changed': {
       // Los nombres pueden faltar si la persona ya no está en la organización.
       const from = event.fromName ?? 'otra persona'

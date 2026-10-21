@@ -7,6 +7,8 @@ export const EVENT_TYPES = [
   'status_changed',
   'priority_changed',
   'assignee_changed',
+  'title_changed',
+  'description_changed',
 ] as const
 
 export type Role = (typeof ROLES)[number]
