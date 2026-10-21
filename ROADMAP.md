@@ -140,10 +140,11 @@ Mejoras de UX del login (pedidas tras la prueba manual):
 - 🟢 Commit: `feat(issues): crud with org isolation and role permissions`
 
 ### Fase 7 — Historial transaccional (~1 h) [P0]
-- [ ] En `createIssue`: `db.transaction` → insert issue + insert evento `created`.
-- [ ] En `updateIssue`: `db.transaction` → leer issue (con `for update`), validar permisos, calcular **diff real**; solo por cada campo de `status`/`priority`/`assignee_id` que **cambió efectivamente** insertar evento (`type`, `from_value`, `to_value`, `actor_id`). Si no hay cambios → no hay eventos. Si se rechaza (permiso/validación) → no hay escritura ni eventos.
-- [ ] `listIssueEvents(issueId)` solo lectura, filtrado por org. Sin endpoints de editar/borrar eventos.
-- [ ] El delete de issue borra en cascada comentarios y eventos.
+- [x] En `createIssue`: `db.transaction` → insert issue + insert evento `created`.
+- [x] En `updateIssue`: `db.transaction` → leer issue (con `for update`), validar permisos, calcular **diff real**; solo por cada campo de `status`/`priority`/`assignee_id` que **cambió efectivamente** insertar evento (`type`, `from_value`, `to_value`, `actor_id`). Si no hay cambios → no hay eventos. Si se rechaza (permiso/validación) → no hay escritura ni eventos.
+- [x] `listIssueEvents` solo lectura, filtrado por org (en `src/server/issues/`: server function `listIssueEvents`, lógica `listEventsForIssue`). Devuelve nombres del actor y, en cambios de assignee, de las personas. Sin endpoints de editar/borrar eventos.
+- [x] El delete de issue borra en cascada comentarios y eventos.
+- [x] Tests en `tests/server/history.test.ts`, incluido el rollback con un fallo forzado en la BD (trigger que rechaza inserts de eventos). Adelantan la parte de persistencia de la fase 13.
 - 🟢 Commit: `feat(history): transactional activity log`
 
 ### Fase 8 — Comentarios (~45 min) [P0]
@@ -189,14 +190,14 @@ Preparar BD de prueba: `TEST_DATABASE_URL` apuntando a un Postgres **aislado** (
 **Servidor** (`tests/server/*.test.ts`, llamando a las funciones/handlers reales contra la BD de prueba):
 - [ ] Sin sesión → `UNAUTHENTICATED` en listar/crear/editar/borrar.
 - [ ] Usuario de Acme no puede leer ni modificar issue/comentario/historial de Beta (aunque use su ID) → `NOT_FOUND`.
-- [ ] Member: crea solo asignado a sí mismo; edita solo los suyos; no reasigna; no borra. Admin: puede todo en su org.
+- [x] Member: crea solo asignado a sí mismo; edita solo los suyos; no reasigna; no borra. Admin: puede todo en su org. (Hecho en la fase 6: `tests/server/issues.test.ts`.)
 - [ ] Comentarios: otro usuario (incluso admin) no puede editar/borrar un comentario ajeno.
 - [ ] Registro: nunca crea admin aunque se envíe `role: 'admin'`.
 
 **Persistencia** (`tests/server/history.test.ts`):
-- [ ] Cambiar status guarda el nuevo estado **y** el evento con from/to correctos.
-- [ ] Si falla el insert del historial (forzar el fallo, p. ej. mock/spy o FK inválida), el cambio del issue **no** queda aplicado (rollback).
-- [ ] Una operación rechazada no crea eventos.
+- [x] Cambiar status guarda el nuevo estado **y** el evento con from/to correctos. (Hecho en la fase 7.)
+- [x] Si falla el insert del historial (forzar el fallo, p. ej. mock/spy o FK inválida), el cambio del issue **no** queda aplicado (rollback). (Hecho en la fase 7, con un trigger en la BD de pruebas.)
+- [x] Una operación rechazada no crea eventos. (Hecho en la fase 7.)
 
 **Interfaz** (`tests/ui/*.test.tsx`, Testing Library, servidor mockeado):
 - [ ] Interacción de filtros o paginación (p. ej. elegir status "done" cambia la petición y la lista; "siguiente página" pide `page=2`).
