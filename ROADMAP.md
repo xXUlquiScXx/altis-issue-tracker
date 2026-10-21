@@ -198,6 +198,7 @@ Mejoras tras la prueba manual en móvil:
 - [x] Click en tarjeta abre el detalle (fase 10): el título es un enlace real y toda la tarjeta lo abre (salvo asa y selector).
 - [x] Botón «Nuevo issue» también en el tablero (mismo formulario y mismas reglas que en la lista: el member solo crea para sí mismo). La tarjeta nueva aparece en la columna del estado elegido sin recargar. Se añadió después de la entrega inicial.
 - [x] Tests en `tests/ui/kanban-board.test.tsx` y `kanban-logic.test.ts`: agrupación, movimiento optimista, reversión al fallar el servidor (con aviso), movimientos simultáneos, permisos y filtros. Cubren la parte de kanban de la fase 13. El gesto físico de arrastrar no se prueba automáticamente.
+- [x] Orden manual dentro de la columna (añadido tras la fase 15): se arrastra una tarjeta y se suelta **entre** otras, en su columna o en otra. Columna nueva `issues.position` (decimal; migración `0003`, con relleno de los issues existentes) y función de servidor `moveIssue` (misma regla que editar: admin cualquiera, member solo los suyos; cambia de columna y/o lugar en una transacción). Posición = promedio de los vecinos; si se agotan los decimales, se renumera la columna. Reordenar dentro de la misma columna **no** crea evento de historial ni cambia «actualizado». El tablero actualiza de forma optimista (también el lugar) y muestra una línea donde caería la tarjeta. Orden de despliegue: **migrar Supabase primero, luego hacer push**. Tests en `tests/server/kanban-order.test.ts` y `tests/ui/`.
 - 🟢 Commit: `feat(ui): kanban board with optimistic updates`
 
 ### Fase 12 — Pulido responsive y UX (~45 min) [P0]
@@ -236,15 +237,23 @@ Preparar BD de prueba: `TEST_DATABASE_URL` apuntando a un Postgres **aislado** (
 - 🟢 Commit (si hay ajustes): `ci: finalize pipeline`
 
 ### Fase 15 — Despliegue final y verificación E2E (~1 h) [P0]
-- [ ] Aplicar migraciones y seed en Supabase (producción) si no están al día. Comprobar con `pnpm db:status` (solo lectura: dice a qué base apunta, si las migraciones están al día y si el enum `event_type` tiene todos los valores).
+- [x] Migraciones en Supabase al día: `pnpm db:status` → 3 de 3, enum `event_type` con 7 valores, `Status: up to date`. Comprobar con `pnpm db:status` (solo lectura: dice a qué base apunta, si las migraciones están al día y si el enum `event_type` tiene todos los valores).
+- [ ] **Seed final** en Supabase, una sola vez y **al terminar todas las verificaciones** (`pnpm db:seed --yes`, borra los datos de prueba y deja el estado limpio para entregar; no repetirlo después de que alguien se registre).
+- [x] Producción corre el último commit: los archivos publicados en Vercel son idénticos byte a byte a los de `pnpm build` local del mismo commit.
 - [ ] Desplegar rama principal en Vercel y recorrer **el flujo completo en la URL pública**, con las dos orgs:
-  - registro y login, logout, expiración
-  - admin vs member (UI y servidor), aislamiento Acme/Beta
-  - CRUD de issues, filtros, paginación, búsqueda
-  - kanban + optimista + persistencia al recargar
-  - comentarios (solo autor) e historial
+  - [x] login con las 4 cuentas de prueba (admin y member de Acme y de Beta); cookie `HttpOnly`, `Secure`, `SameSite=Lax`, `Max-Age=7200`; respuesta idéntica para contraseña errónea y correo inexistente
+  - [x] sin sesión: las 12 server functions protegidas responden `401`; Origin ausente o ajeno → `403` (protección CSRF); cookie manipulada → `401`
+  - [x] admin vs member en el servidor: rechazos `403` (editar issue ajeno o sin asignar, reasignar, borrar, editar/borrar comentario ajeno) sin escribir nada
+  - [x] aislamiento Acme/Beta: cada org ve solo lo suyo; leer, editar, borrar o comentar un issue de la otra → `404`
+  - [x] filtros, paginación y búsqueda en la lista; usuarios de la org solo con id, nombre y rol; historial en orden cronológico; errores sin detalles internos
+  - [ ] registro de una cuenta nueva (siempre `member`), logout
+  - [ ] CRUD de issues desde la interfaz: crear, editar, borrar
+  - [ ] kanban + optimista + persistencia al recargar (arrastrar de verdad)
+  - [ ] comentarios (publicar, editar, borrar) e historial después de editar
+  - [ ] expiración de sesión (la cookie caduca a las 2 h; el token vencido se rechaza con `401`, probado en tests)
+  > Las comprobaciones marcadas se hicieron con un script de solo lectura contra la URL pública (56 comprobaciones, 0 fallos). Las pendientes escriben datos o dependen del navegador.
 - [ ] Verificar que los datos persisten entre sesiones y reinicios.
-- [ ] Anotar limitaciones del plan gratuito (cold start de funciones, pausa de proyectos Supabase tras inactividad: **abrir el panel de Supabase el día de la entrega para asegurar que no esté pausado**).
+- [ ] Anotar limitaciones del plan gratuito (cold start de funciones, pausa de proyectos Supabase tras inactividad: **abrir el panel de Supabase el día de la entrega para asegurar que no esté pausado**). Medido hoy: `/api/health` y la lista tardan entre 0,5 y 3,5 s según haya o no una instancia caliente; la región de la función en Vercel debería ser la más cercana a Supabase (`us-east-1` ↔ Washington D.C., `iad1`): revisar en Vercel → Settings → Functions → Region. El límite de intentos de login es por instancia (en memoria).
 
 ### Fase 16 — README.md (~45 min) [P0]
 Secciones obligatorias del PDF:
