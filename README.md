@@ -52,6 +52,20 @@ pnpm db:seed --yes        # BORRA los datos de esa base y carga los de ejemplo
 pnpm dev                  # http://localhost:3000
 ```
 
+### Postgres local con Docker (opcional)
+
+Si prefieres no instalar Postgres, `docker-compose.yml` levanta uno con dos bases (`altis_issue_tracker` para desarrollo y `altis_issue_tracker_test` para pruebas) en el puerto **5433**:
+
+```bash
+docker compose up -d
+# en .env:
+# DATABASE_URL=postgres://postgres:postgres@localhost:5433/altis_issue_tracker
+# DATABASE_URL_MIGRATE=postgres://postgres:postgres@localhost:5433/altis_issue_tracker
+# TEST_DATABASE_URL=postgres://postgres:postgres@localhost:5433/altis_issue_tracker_test
+pnpm db:migrate && pnpm db:seed --yes && pnpm db:reset:test
+docker compose down      # apagar (agrega -v para borrar también los datos)
+```
+
 ### Variables de entorno
 
 | Variable | Para qué sirve |
@@ -81,7 +95,7 @@ Los secretos no están en el repo: `.env` está ignorado y solo se versiona `.en
 ### Pruebas
 
 ```bash
-createdb altis_issue_tracker_test            # una vez, en tu Postgres local
+createdb altis_issue_tracker_test            # una vez, en tu Postgres local (o usa docker compose, arriba)
 # en .env: TEST_DATABASE_URL=postgres://TU_USUARIO@localhost:5432/altis_issue_tracker_test
 pnpm db:reset:test
 pnpm test
@@ -183,4 +197,4 @@ Entiendo y puedo explicar el código entregado; el repo está pensado con funcio
 - **Dos personas moviendo la misma columna a la vez:** el servidor serializa los cambios (bloqueo de fila), pero la pantalla del otro usuario se actualiza al volver a la pestaña o recargar; no hay tiempo real.
 - **Arrastre no automatizado:** el gesto físico se probó a mano; los tests simulan los eventos de `dnd-kit`.
 - **Búsqueda `ILIKE`** sin índices de texto: adecuada para decenas de miles de filas, no para millones.
-- Los extras opcionales del reto (adjuntos, tiempo real, `docker-compose`, despliegue continuo propio) no se implementaron.
+- **Extras opcionales.** Se hizo `docker-compose.yml` (Postgres local), pero **no se pudo probar** porque no tenía Docker instalado al escribirlo; el resto de la guía de ejecución local sí se usó con un Postgres instalado. No se implementaron adjuntos ni tiempo real. El despliegue en Vercel es automático en cada push a `main` (integración de Vercel con GitHub), pero las migraciones se aplican a mano antes del push.

@@ -273,6 +273,9 @@ Secciones obligatorias del PDF:
 
 ### Extras (solo si TODO lo anterior está verde) [P2]
 `docker-compose.yml` para Postgres local → CD automático a Vercel → adjuntos → realtime.
+- [x] `docker-compose.yml` (Postgres 16, bases de desarrollo y de pruebas en el puerto 5433) + `docker/init-test-db.sql`. Sin probar: Docker no estaba instalado.
+- [x] Despliegue automático: ya lo da la integración de Vercel con GitHub (cada push a `main`); se documenta en el README.
+- [ ] Adjuntos y realtime: descartados por plazo y riesgo (tocarían la BD de producción ya verificada).
 
 ---
 

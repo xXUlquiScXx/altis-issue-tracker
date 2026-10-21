@@ -1,0 +1,24 @@
+# Postgres local para desarrollo y pruebas: `docker compose up -d`.
+# Usa el puerto 5433 para no chocar con un Postgres instalado en la máquina (5432).
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      # Base de desarrollo; la de pruebas la crea docker/init-test-db.sql.
+      POSTGRES_DB: altis_issue_tracker
+    ports:
+      - '5433:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # Solo se ejecuta la primera vez que se crea el volumen.
+      - ./docker/init-test-db.sql:/docker-entrypoint-initdb.d/init-test-db.sql:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d altis_issue_tracker']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  pgdata:
