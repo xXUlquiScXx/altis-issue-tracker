@@ -232,12 +232,12 @@ Preparar BD de prueba: `TEST_DATABASE_URL` apuntando a un Postgres **aislado** (
 
 ### Fase 14 — CI completo (~30 min) [P0]
 - [x] Confirmar que el pipeline ejecuta TODO (lint, typecheck, migraciones, tests, build) y queda **verde** en el último commit. Verificado con la API de GitHub en el run de `d0b5a06`: checkout → pnpm y Node (desde `.nvmrc`) → `install --frozen-lockfile` → lint → typecheck → `db:migrate` (sobre su Postgres 16 temporal) → test → build, todos en `success`, 69 s.
-- [ ] Runner fijado a `ubuntu-24.04` (en vez de `ubuntu-latest`, que GitHub está migrando a Ubuntu 26 desde el 19-oct-2026). Verificar que el siguiente run siga verde tras el push.
-- [ ] Copiar el enlace del run exitoso (para el README): pestaña **Actions** del repo → clic en el run del commit → copiar la URL (`.../actions/runs/<número>`). Debe ser el run del **último commit de código**; como editar el README genera otro commit y otro run, el README llevará además el badge de estado y el enlace a la página del workflow. Último run verde conocido: https://github.com/xXUlquiScXx/altis-issue-tracker/actions/runs/39634227191
+- [x] Runner fijado a `ubuntu-24.04` (en vez de `ubuntu-latest`, que GitHub está migrando a Ubuntu 26 desde el 19-oct-2026). Verificado: los runs posteriores al cambio (`5cee1d1` y `be0d58a`) salieron en verde.
+- [x] Enlace del run exitoso para el README (último commit de código con orden manual, `be0d58a`; el README añadirá además el badge y el enlace al workflow): https://github.com/xXUlquiScXx/altis-issue-tracker/actions/runs/39642953445
 - 🟢 Commit (si hay ajustes): `ci: finalize pipeline`
 
 ### Fase 15 — Despliegue final y verificación E2E (~1 h) [P0]
-- [x] Migraciones en Supabase al día: `pnpm db:status` → 3 de 3, enum `event_type` con 7 valores, `Status: up to date`. Comprobar con `pnpm db:status` (solo lectura: dice a qué base apunta, si las migraciones están al día y si el enum `event_type` tiene todos los valores).
+- [x] Migraciones en Supabase al día: `pnpm db:status` → 4 de 4 tras la migración `0003` (orden manual; antes 3 de 3), enum `event_type` con 7 valores, `Status: up to date`. Comprobar con `pnpm db:status` (solo lectura: dice a qué base apunta, si las migraciones están al día y si el enum `event_type` tiene todos los valores).
 - [ ] **Seed final** en Supabase, una sola vez y **al terminar todas las verificaciones** (`pnpm db:seed --yes`, borra los datos de prueba y deja el estado limpio para entregar; no repetirlo después de que alguien se registre).
 - [x] Producción corre el último commit: los archivos publicados en Vercel son idénticos byte a byte a los de `pnpm build` local del mismo commit.
 - [ ] Desplegar rama principal en Vercel y recorrer **el flujo completo en la URL pública**, con las dos orgs:
