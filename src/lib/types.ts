@@ -1,4 +1,11 @@
-export type Role = 'admin' | 'member'
+// Fuente única de los valores permitidos: la usan la BD (pgEnum), zod y la UI.
+export const ROLES = ['admin', 'member'] as const
+export const STATUSES = ['todo', 'in_progress', 'done'] as const
+export const PRIORITIES = ['low', 'med', 'high'] as const
+
+export type Role = (typeof ROLES)[number]
+export type Status = (typeof STATUSES)[number]
+export type Priority = (typeof PRIORITIES)[number]
 
 // Usuario autenticado tal como lo conoce el servidor (y lo recibe la UI).
 export interface SessionUser {
@@ -8,4 +15,34 @@ export interface SessionUser {
   role: Role
   name: string
   email: string
+}
+
+// Issue tal como lo recibe la UI (con los nombres ya resueltos).
+export interface IssueDto {
+  id: string
+  title: string
+  description: string | null
+  status: Status
+  priority: Priority
+  assigneeId: string | null
+  assigneeName: string | null
+  createdBy: string
+  createdByName: string
+  labels: string[]
+  createdAt: Date
+  updatedAt: Date
+}
+
+export interface IssuePage {
+  items: IssueDto[]
+  total: number
+  page: number
+  pageSize: number
+}
+
+// Usuario de la org para el selector de assignee y los filtros.
+export interface OrgUser {
+  id: string
+  name: string
+  role: Role
 }

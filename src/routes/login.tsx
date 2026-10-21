@@ -73,7 +73,7 @@ function LoginPage() {
                 </p>
               )}
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 space-y-2">
               <Checkbox
                 key={rememberedEmail}
                 id="remember"

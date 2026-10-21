@@ -8,10 +8,11 @@ import {
   timestamp,
   uuid,
 } from 'drizzle-orm/pg-core'
+import { PRIORITIES, ROLES, STATUSES } from '../lib/types'
 
-export const roleEnum = pgEnum('role', ['admin', 'member'])
-export const statusEnum = pgEnum('status', ['todo', 'in_progress', 'done'])
-export const priorityEnum = pgEnum('priority', ['low', 'med', 'high'])
+export const roleEnum = pgEnum('role', ROLES)
+export const statusEnum = pgEnum('status', STATUSES)
+export const priorityEnum = pgEnum('priority', PRIORITIES)
 export const eventTypeEnum = pgEnum('event_type', [
   'created',
   'status_changed',
