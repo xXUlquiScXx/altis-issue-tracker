@@ -184,9 +184,9 @@ Mejoras tras la prueba manual en móvil:
 - [x] Enlace compartido sin sesión: se pide iniciar sesión y se vuelve a ese enlace después (`?redirect=`, validado para aceptar solo rutas internas: `src/lib/safe-redirect.ts`). También si la sesión expira a mitad de uso.
 - 🟢 Commit (avance del detalle): `feat(ui): issue detail page with shareable link`
 - [x] Página 404 propia en español para direcciones inexistentes (`src/components/not-found.tsx`, configurada como `defaultNotFoundComponent` del router). Quita el aviso `notFoundComponent option was not configured` del log.
-- [ ] Sección comentarios: listar (autor + fecha), crear; editar/borrar solo en los propios.
-- [ ] Sección historial: lista cronológica "X cambió status de `todo` a `in_progress` · fecha".
-- [ ] Estados loading / vacío / error en cada sección.
+- [x] Sección comentarios: listar (autor + fecha, marca «editado», Markdown), crear; editar/borrar solo en los propios (y borrar pide confirmación). `src/components/issues/issue-comments.tsx`.
+- [x] Sección historial: lista cronológica «Ana cambió el estado de «Por hacer» a «En progreso» · fecha», con nombres en los cambios de responsable. `src/components/issues/issue-history.tsx` y `src/lib/history.ts`.
+- [x] Estados loading / vacío / error en cada sección (detalle, comentarios e historial; con «Reintentar»).
 - 🟢 Commit: `feat(ui): issue detail with comments and history`
 
 ### Fase 11 — Kanban con actualización optimista (~1 h 30) [P0]
