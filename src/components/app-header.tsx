@@ -17,7 +17,8 @@ import { ROLE_LABEL } from '@/lib/labels'
 import type { SessionUser } from '@/lib/types'
 import { logout } from '@/server/auth/functions'
 
-const navLinkClass = 'rounded-md px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground'
+const navLinkClass =
+  'rounded-md px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground'
 
 function initials(name: string) {
   return name

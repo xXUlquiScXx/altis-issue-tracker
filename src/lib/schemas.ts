@@ -85,6 +85,9 @@ export const listIssuesSchema = z.object({
   q: z.string().trim().max(100).optional(),
 })
 
+// Lo que envía el cliente (antes de aplicar valores por defecto).
+export type CreateIssueFormInput = z.input<typeof createIssueSchema>
+export type UpdateIssueFormInput = z.input<typeof updateIssueSchema>
 export type CreateIssueInput = z.infer<typeof createIssueSchema>
 export type UpdateIssueInput = z.infer<typeof updateIssueSchema>
 export type ListIssuesInput = z.infer<typeof listIssuesSchema>
