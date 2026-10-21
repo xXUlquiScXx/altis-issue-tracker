@@ -155,8 +155,16 @@ Mejoras de UX del login (pedidas tras la prueba manual):
 - 🟢 Commit: `feat(comments): crud with author-only edit/delete`
 
 ### Fase 9 — Frontend: base y listado (~2 h 15) [P0]
-- [ ] Layout con header (usuario, org, rol, logout) y navegación Lista / Kanban. `QueryClientProvider`, `Toaster`.
-- [ ] Capa `api` del cliente: manejo uniforme de errores (por `code`): 401 → login, 403 → toast "sin permiso", 400 → errores por campo, 500 → mensaje genérico.
+> Se entrega en dos partes, cada una con su commit.
+
+**Entrega 1 — Base de la interfaz**
+- [x] Layout con header (usuario, org, rol, logout) y navegación Lista / Kanban (`src/components/app-header.tsx`; la ruta `/kanban` es provisional hasta la fase 11). `QueryClientProvider` y `Toaster` en `src/routes/__root.tsx`.
+- [x] Capa `api` del cliente: manejo uniforme de errores (por `code`): 401 → login, 403 → toast "sin permiso", 400 → errores por campo, 500 → mensaje genérico. (`src/lib/api.ts` y `src/lib/query-client.ts`; los 400 los muestra cada formulario.)
+- [x] Mensajes de error de la API traducidos al español (`src/lib/messages.ts`), con un test que avisa si el servidor emite un mensaje sin traducción.
+- [x] Tema claro/oscuro: botón sol/luna en el header y flotante en login y registro; se guarda en el navegador y se aplica antes de pintar (sin destello); sin guardado, usa el tema del sistema.
+- 🟢 Commit: `feat(ui): app shell, theme toggle and api error layer`
+
+**Entrega 2 — Lista de issues**
 - [ ] Vista **Lista**: tabla/tarjetas, filtros (status, priority, assignee, búsqueda con debounce), paginación server-side, estados **loading** (skeleton), **vacío**, **error** (con reintentar).
 - [ ] Filtros y página reflejados en la URL (search params de TanStack Router) → compartible y fácil de testear.
 - [ ] Formulario crear/editar issue (react-hook-form opcional) con validación zod del mismo esquema que el servidor; toasts de éxito/error.
