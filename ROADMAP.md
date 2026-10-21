@@ -165,11 +165,12 @@ Mejoras de UX del login (pedidas tras la prueba manual):
 - 🟢 Commit: `feat(ui): app shell, theme toggle and api error layer`
 
 **Entrega 2 — Lista de issues**
-- [ ] Vista **Lista**: tabla/tarjetas, filtros (status, priority, assignee, búsqueda con debounce), paginación server-side, estados **loading** (skeleton), **vacío**, **error** (con reintentar).
-- [ ] Filtros y página reflejados en la URL (search params de TanStack Router) → compartible y fácil de testear.
-- [ ] Formulario crear/editar issue (react-hook-form opcional) con validación zod del mismo esquema que el servidor; toasts de éxito/error.
-- [ ] Permisos en UI: ocultar/deshabilitar crear/editar/asignar/borrar según `can` del cliente (derivado del rol/usuario). Recordar: el servidor igual lo valida.
-- [ ] Mutaciones invalidan queries para mantener coherencia lista ↔ detalle ↔ kanban.
+- [x] Vista **Lista**: tabla (en pantallas chicas las columnas se pliegan bajo el título), filtros (status, priority, assignee, búsqueda con debounce de 300 ms), paginación server-side de 20, estados **loading** (skeleton), **vacío**, **error** (con reintentar). Componentes en `src/components/issues/`.
+- [x] Filtros y página reflejados en la URL (search params de TanStack Router) → compartible y fácil de testear.
+- [x] Formulario crear/editar issue (sin react-hook-form: `FormData` + los mismos esquemas zod del servidor); toasts de éxito/error; confirmación antes de eliminar.
+- [x] Permisos en UI: ocultar/deshabilitar crear/editar/asignar/borrar según `can` del cliente (derivado del rol/usuario). Recordar: el servidor igual lo valida.
+- [x] Mutaciones invalidan queries para mantener coherencia lista ↔ detalle ↔ kanban (claves en `src/lib/query-keys.ts`).
+- [x] Tests de UI en `tests/ui/issues-list.test.tsx` (filtros, búsqueda, paginación, vacío, error, permisos, formulario y borrado). Adelantan la parte de interfaz de la fase 13.
 - 🟢 Commit: `feat(ui): issue list with filters and pagination`
 
 ### Fase 10 — Detalle, comentarios e historial en UI (~1 h 30) [P0]
@@ -209,7 +210,7 @@ Preparar BD de prueba: `TEST_DATABASE_URL` apuntando a un Postgres **aislado** (
 - [x] Una operación rechazada no crea eventos. (Hecho en la fase 7.)
 
 **Interfaz** (`tests/ui/*.test.tsx`, Testing Library, servidor mockeado):
-- [ ] Interacción de filtros o paginación (p. ej. elegir status "done" cambia la petición y la lista; "siguiente página" pide `page=2`).
+- [x] Interacción de filtros o paginación (p. ej. elegir status "done" cambia la petición y la lista; "siguiente página" pide `page=2`). (Hecho en la fase 9.)
 - [ ] Kanban: al mover una tarjeta y fallar el servidor, la tarjeta **vuelve** a su columna y aparece el mensaje de error.
 - 🟢 Commit: `test: server, persistence and ui behavior tests`
 
