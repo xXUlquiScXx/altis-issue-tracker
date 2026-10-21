@@ -233,7 +233,7 @@ Preparar BD de prueba: `TEST_DATABASE_URL` apuntando a un Postgres **aislado** (
 ### Fase 14 — CI completo (~30 min) [P0]
 - [x] Confirmar que el pipeline ejecuta TODO (lint, typecheck, migraciones, tests, build) y queda **verde** en el último commit. Verificado con la API de GitHub en el run de `d0b5a06`: checkout → pnpm y Node (desde `.nvmrc`) → `install --frozen-lockfile` → lint → typecheck → `db:migrate` (sobre su Postgres 16 temporal) → test → build, todos en `success`, 69 s.
 - [x] Runner fijado a `ubuntu-24.04` (en vez de `ubuntu-latest`, que GitHub está migrando a Ubuntu 26 desde el 19-oct-2026). Verificado: los runs posteriores al cambio (`5cee1d1` y `be0d58a`) salieron en verde.
-- [x] Enlace del run exitoso para el README (run #20, commit `7ad2d26`, verde; el último commit de código es `bf5b545` con orden manual, `7ad2d26` solo cambió docs; el README añadirá además el badge y el enlace al workflow): https://github.com/xXUlquiScXx/altis-issue-tracker/actions/runs/39645226386
+- [x] Enlace del run exitoso para el README (run #21, commit `b111804` con el docker-compose, verde; el README añadirá además el badge y el enlace al workflow): https://github.com/xXUlquiScXx/altis-issue-tracker/actions/runs/39657406761
 - 🟢 Commit (si hay ajustes): `ci: finalize pipeline`
 
 ### Fase 15 — Despliegue final y verificación E2E (~1 h) [P0]
@@ -260,7 +260,7 @@ Secciones obligatorias del PDF:
 - [x] URL desplegada + credenciales (admin y 2 members de **Acme** y **Beta**).
 - [x] Instalación y ejecución local, variables de entorno, migraciones, seed y cómo correr pruebas (incluida la BD de prueba).
 - [x] Pasos para reproducir el despliegue y servicios usados (Vercel + Supabase + GitHub Actions).
-- [ ] Enlace al pipeline exitoso del commit entregado. (El README ya lleva el badge, el enlace al workflow y el run #20; tras hacer push del README, cambiar el enlace del run por el del run nuevo en verde.)
+- [x] Enlace al pipeline exitoso del commit entregado: run #21 (`b111804`), verde. Si se hace otro commit después, volver a actualizar el enlace.
 - [x] Descripción de las funciones de servidor/endpoints.
 - [x] Decisiones técnicas y trade-offs (ver lista de ideas abajo).
 - [x] **Uso de IA**: herramientas (Claude Code), qué se delegó, cómo se verificó (tests, revisión manual de diff, pruebas manuales en el despliegue). Declarar plantillas/código reutilizado (shadcn/ui, etc.).

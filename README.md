@@ -7,7 +7,7 @@ Gestor de issues **multi-organización** con listado, tablero kanban (arrastrar 
 - **App desplegada:** https://altis-issue-tracker.vercel.app/
 - **Repositorio:** https://github.com/xXUlquiScXx/altis-issue-tracker
 - **CI (workflow):** https://github.com/xXUlquiScXx/altis-issue-tracker/actions/workflows/ci.yml
-- **Run verde de referencia:** https://github.com/xXUlquiScXx/altis-issue-tracker/actions/runs/39645226386
+- **Run verde de referencia:** https://github.com/xXUlquiScXx/altis-issue-tracker/actions/runs/39657406761
 
 > La primera petición tras un rato sin uso puede tardar unos segundos (ver [Limitaciones](#limitaciones-honestas)).
 
