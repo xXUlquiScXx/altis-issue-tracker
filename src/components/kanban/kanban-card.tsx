@@ -1,4 +1,4 @@
-import { useDraggable } from '@dnd-kit/core'
+import { useDraggable, useDroppable } from '@dnd-kit/core'
 import { GripVertical, Lock } from 'lucide-react'
 import { PriorityBadge } from '@/components/issues/issue-badges'
 import { NativeSelect } from '@/components/ui/native-select'
@@ -15,20 +15,44 @@ interface Props {
   href: string
   // ¿Esta persona puede cambiar el estado? (lo decide `can`, igual que el servidor)
   canMove: boolean
+  // ¿Se va a soltar una tarjeta justo debajo de esta? Dibuja la línea de inserción.
+  lineBelow: boolean
   onView: (issue: IssueDto) => void
   onMove: (status: Status) => void
 }
 
-export function KanbanCard({ issue, href, canMove, onView, onMove }: Props) {
-  const { attributes, listeners, setNodeRef, setActivatorNodeRef, isDragging } =
-    useDraggable({ id: issue.id, disabled: !canMove })
+export function KanbanCard({
+  issue,
+  href,
+  canMove,
+  lineBelow,
+  onView,
+  onMove,
+}: Props) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef: setDragRef,
+    setActivatorNodeRef,
+    isDragging,
+  } = useDraggable({ id: issue.id, disabled: !canMove })
+  // La misma tarjeta es también un lugar donde soltar otra: así se sabe entre
+  // cuáles dos tarjetas se quiere colocar. Se puede soltar sobre cualquiera,
+  // incluso sobre las que esta persona no puede mover.
+  const { setNodeRef: setDropRef } = useDroppable({ id: issue.id })
 
   return (
     <li
-      ref={setNodeRef}
+      ref={(node) => {
+        setDragRef(node)
+        setDropRef(node)
+      }}
       className={cn(
-        'space-y-2 rounded-lg border bg-card p-3 text-sm shadow-xs',
+        'relative space-y-2 rounded-lg border bg-card p-3 text-sm shadow-xs',
         isDragging && 'opacity-40',
+        // Línea de inserción: aparece en el hueco de debajo de esta tarjeta.
+        lineBelow &&
+          'after:absolute after:inset-x-0 after:-bottom-[7px] after:h-0.5 after:rounded after:bg-primary',
       )}
       onClick={(event) => {
         // Los controles de la tarjeta (enlace, asa, selector) tienen su propia acción.

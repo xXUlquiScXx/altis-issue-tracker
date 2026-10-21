@@ -34,6 +34,8 @@ export interface IssueDto {
   description: string | null
   status: Status
   priority: Priority
+  // Orden dentro de su columna del kanban (menor = más arriba).
+  position: number
   assigneeId: string | null
   assigneeName: string | null
   createdBy: string

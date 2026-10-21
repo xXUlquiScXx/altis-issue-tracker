@@ -3,6 +3,7 @@ import {
   createIssueSchema,
   issueIdSchema,
   listIssuesSchema,
+  moveIssueSchema,
   updateIssueSchema,
 } from '@/lib/schemas'
 import { requireUser } from '../middleware'
@@ -13,6 +14,7 @@ import {
   getIssueForUser,
   listEventsForIssue,
   listUsersInOrg,
+  moveIssueForUser,
   searchIssues,
   updateIssueForUser,
 } from './service'
@@ -39,6 +41,12 @@ export const updateIssue = createServerFn({ method: 'POST' })
   .middleware([requireUser])
   .validator(validate(updateIssueSchema))
   .handler(({ data, context }) => updateIssueForUser(context.user, data))
+
+// Mover una tarjeta del kanban (de columna y/o de lugar dentro de la columna).
+export const moveIssue = createServerFn({ method: 'POST' })
+  .middleware([requireUser])
+  .validator(validate(moveIssueSchema))
+  .handler(({ data, context }) => moveIssueForUser(context.user, data))
 
 export const deleteIssue = createServerFn({ method: 'POST' })
   .middleware([requireUser])

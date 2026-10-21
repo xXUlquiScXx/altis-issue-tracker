@@ -166,6 +166,7 @@ describe('policy: every server function requires a session, except the public on
       'listIssues',
       'createIssue',
       'updateIssue',
+      'moveIssue',
       'deleteIssue',
       'listIssueEvents',
       'listComments',

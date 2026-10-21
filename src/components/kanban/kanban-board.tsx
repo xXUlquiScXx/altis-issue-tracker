@@ -10,6 +10,7 @@ import {
   useSensors,
   type CollisionDetection,
   type DragEndEvent,
+  type DragMoveEvent,
   type DragStartEvent,
 } from '@dnd-kit/core'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
@@ -26,9 +27,11 @@ import { api, isApiError } from '@/lib/api'
 import type { BoardSearch, IssueSearch } from '@/lib/issue-filters'
 import {
   BOARD_PAGE_SIZE,
+  dropTarget,
   groupByStatus,
-  statusFromDrop,
+  isBelowMiddle,
   toBoardInput,
+  type DropTarget,
 } from '@/lib/kanban'
 import { STATUS_LABEL } from '@/lib/labels'
 import { apiErrorMessage } from '@/lib/messages'
@@ -47,10 +50,19 @@ interface Props {
   onViewIssue: (issue: IssueDto) => void
 }
 
-// Primero donde está el puntero; si no hay, la columna que más se solape.
+// Qué hay bajo el puntero: primero una tarjeta (para colocar entre tarjetas); si
+// no hay, la columna. Si el puntero no está sobre nada, la que más se solape.
 const collisionDetection: CollisionDetection = (args) => {
   const pointer = pointerWithin(args)
+  const cards = pointer.filter(
+    (collision) => !STATUSES.some((status) => status === collision.id),
+  )
+  if (cards.length > 0) return cards
   return pointer.length > 0 ? pointer : rectIntersection(args)
+}
+
+function sameTarget(a: DropTarget | null, b: DropTarget | null) {
+  return a?.status === b?.status && a?.afterId === b?.afterId
 }
 
 export function KanbanBoard({
@@ -69,6 +81,8 @@ export function KanbanBoard({
   const { data: users } = useOrgUsers()
   const move = useMoveIssue(input)
   const [activeId, setActiveId] = useState<string | null>(null)
+  // Dónde caería la tarjeta que se está arrastrando (para dibujar la línea).
+  const [hint, setHint] = useState<DropTarget | null>(null)
   const [resetKey, setResetKey] = useState(0)
   const [creating, setCreating] = useState(false)
 
@@ -90,11 +104,27 @@ export function KanbanBoard({
     setActiveId(String(event.active.id))
   }
 
+  // Dónde caería la tarjeta con lo que hay bajo el puntero en este momento.
+  function targetOf(event: DragMoveEvent | DragEndEvent) {
+    const { active, over } = event
+    if (!over) return null
+    const moved = active.rect.current.translated
+    // Mitad de arriba o de abajo de la tarjeta sobre la que pasa: encima o debajo.
+    const below = moved ? isBelowMiddle(moved, over.rect) : true
+    return dropTarget(over.id, String(active.id), columns, below)
+  }
+
+  function handleDragMove(event: DragMoveEvent) {
+    const next = targetOf(event)
+    setHint((current) => (sameTarget(current, next) ? current : next))
+  }
+
   function handleDragEnd(event: DragEndEvent) {
     setActiveId(null)
+    setHint(null)
     const issue = issues.find((item) => item.id === event.active.id)
-    const status = statusFromDrop(event.over?.id, issue?.status)
-    if (issue && status) move.mutate({ issue, status })
+    const target = targetOf(event)
+    if (issue && target) move.mutate({ issue, ...target })
   }
 
   // Los filtros compartidos hablan de "página" y "estado", que aquí no existen:
@@ -185,8 +215,12 @@ export function KanbanBoard({
             sensors={sensors}
             collisionDetection={collisionDetection}
             onDragStart={handleDragStart}
+            onDragMove={handleDragMove}
             onDragEnd={handleDragEnd}
-            onDragCancel={() => setActiveId(null)}
+            onDragCancel={() => {
+              setActiveId(null)
+              setHint(null)
+            }}
             accessibility={{
               screenReaderInstructions: {
                 draggable:
@@ -216,6 +250,7 @@ export function KanbanBoard({
                   key={status}
                   status={status}
                   count={columns[status].length}
+                  lineOnTop={hint?.status === status && hint.afterId === null}
                 >
                   {columns[status].map((issue) => (
                     <KanbanCard
@@ -227,11 +262,12 @@ export function KanbanBoard({
                         orgId: user.orgId,
                         assigneeId: issue.assigneeId,
                       })}
+                      lineBelow={hint?.afterId === issue.id}
                       onView={onViewIssue}
                       onMove={(next) => {
                         // Elegir el estado en el que ya está no cambia nada.
                         if (next !== issue.status) {
-                          move.mutate({ issue, status: next })
+                          move.mutate({ issue, status: next, afterId: null })
                         }
                       }}
                     />

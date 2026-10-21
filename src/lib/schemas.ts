@@ -75,6 +75,14 @@ export const updateIssueSchema = z.object({
 
 export const issueIdSchema = z.object({ id: z.uuid() })
 
+// Mover una tarjeta en el kanban: a qué columna y debajo de cuál tarjeta.
+// `afterId` es la tarjeta que queda justo encima; null (o ausente) = al principio.
+export const moveIssueSchema = z.object({
+  id: z.uuid(),
+  status: statusSchema,
+  afterId: z.uuid().nullish(),
+})
+
 export const listIssuesSchema = z.object({
   page: z.number().int().min(1).default(1),
   pageSize: z.number().int().min(1).max(100).default(20),
@@ -91,6 +99,7 @@ export type UpdateIssueFormInput = z.input<typeof updateIssueSchema>
 export type CreateIssueInput = z.infer<typeof createIssueSchema>
 export type UpdateIssueInput = z.infer<typeof updateIssueSchema>
 export type ListIssuesInput = z.infer<typeof listIssuesSchema>
+export type MoveIssueInput = z.infer<typeof moveIssueSchema>
 
 // ---- Comentarios ----
 

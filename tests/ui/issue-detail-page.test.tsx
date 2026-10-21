@@ -58,6 +58,7 @@ function makeIssue(patch: Partial<IssueDto> = {}): IssueDto {
     description: '## Pasos\n\n1. Abrir\n2. **Guardar**',
     status: 'in_progress',
     priority: 'high',
+    position: 1,
     assigneeId: null,
     assigneeName: null,
     createdBy: admin.id,

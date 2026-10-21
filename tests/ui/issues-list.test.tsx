@@ -65,6 +65,7 @@ const ALL: IssueDto[] = Array.from({ length: 45 }, (_, i) => {
     description: i === 1 ? '## Pasos\n\n1. Abrir\n2. **Guardar**' : null,
     status: STATUSES[i % 3]!,
     priority: PRIORITIES[(i * 7) % 3]!,
+    position: i + 1,
     assigneeId: assignee?.id ?? null,
     assigneeName: assignee?.name ?? null,
     createdBy: admin.id,

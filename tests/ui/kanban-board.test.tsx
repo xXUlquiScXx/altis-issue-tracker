@@ -1,5 +1,7 @@
 import { QueryClientProvider } from '@tanstack/react-query'
+import type { DndContextProps } from '@dnd-kit/core'
 import {
+  act,
   cleanup,
   render,
   screen,
@@ -8,23 +10,41 @@ import {
 } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
-import { Toaster } from 'sonner'
+import { Toaster, toast } from 'sonner'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { KanbanBoard } from '@/components/kanban/kanban-board'
 import type { BoardSearch } from '@/lib/issue-filters'
+import { positionForDrop } from '@/lib/kanban'
 import { createQueryClient } from '@/lib/query-client'
 import type { IssueDto, IssuePage, SessionUser } from '@/lib/types'
+
+// Se deja el DndContext real, pero se guardan sus propiedades: así el test puede
+// disparar `onDragEnd` / `onDragMove` como lo haría el puntero al arrastrar.
+const dnd = vi.hoisted(() => ({
+  props: undefined as unknown as DndContextProps,
+}))
+vi.mock('@dnd-kit/core', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@dnd-kit/core')>()
+  const { createElement } = await import('react')
+  return {
+    ...actual,
+    DndContext: (props: DndContextProps) => {
+      dnd.props = props
+      return createElement(actual.DndContext, props)
+    },
+  }
+})
 
 vi.mock('@/server/issues/functions', () => ({
   listIssues: vi.fn(),
   listOrgUsers: vi.fn(),
-  updateIssue: vi.fn(),
+  moveIssue: vi.fn(),
   createIssue: vi.fn(),
 }))
 const fns = await import('@/server/issues/functions')
 const listIssues = vi.mocked(fns.listIssues)
 const listOrgUsers = vi.mocked(fns.listOrgUsers)
-const updateIssue = vi.mocked(fns.updateIssue)
+const moveIssue = vi.mocked(fns.moveIssue)
 const createIssue = vi.mocked(fns.createIssue)
 
 const ORG = 'org-1'
@@ -69,6 +89,7 @@ function makeIssue(
     createdBy: admin.id,
     createdByName: 'Alicia',
     labels: [],
+    position: 0,
     createdAt: new Date(2026, 9, 1),
     updatedAt: new Date(2026, 9, day),
   }
@@ -86,6 +107,15 @@ function resetRows() {
     makeIssue('d', 'Hecho de Luis', 'done', 'luis', 2),
     makeIssue('e', 'Sin asignar', 'todo', null, 1),
   ]
+  // Posición inicial: dentro de cada columna, la más reciente arriba.
+  for (const status of ['todo', 'in_progress', 'done'] as const) {
+    rows
+      .filter((row) => row.status === status)
+      .sort((x, y) => y.updatedAt.getTime() - x.updatedAt.getTime())
+      .forEach((row, index) => {
+        row.position = index + 1
+      })
+  }
   extraTotal = 0
 }
 
@@ -177,23 +207,28 @@ beforeEach(() => {
       null,
       9,
     )
+    row.position = positionForDrop(rows, row, row.status, null)
     rows.push(row)
     return structuredClone(row)
   }) as never)
-  updateIssue.mockImplementation((async ({
+  // El servidor falso de «mover»: misma cuenta de posición que el real.
+  moveIssue.mockImplementation((async ({
     data,
   }: {
-    data: { id: string; status: IssueDto['status'] }
+    data: { id: string; status: IssueDto['status']; afterId?: string | null }
   }) => {
     const row = rows.find((i) => i.id === data.id)!
+    row.position = positionForDrop(rows, row, data.status, data.afterId ?? null)
+    if (row.status !== data.status) row.updatedAt = new Date()
     row.status = data.status
-    row.updatedAt = new Date()
     return structuredClone(row)
   }) as never)
 })
 
 afterEach(() => {
   cleanup()
+  // Los avisos de sonner son globales: sin esto, el de un test aparece en el siguiente.
+  toast.dismiss()
   vi.clearAllMocks()
 })
 
@@ -249,7 +284,7 @@ describe('kanban board: optimistic move', () => {
   it('moves the card right away, before the server answers, and then refreshes', async () => {
     const user = userEvent.setup()
     const pending = deferred<IssueDto>()
-    updateIssue.mockImplementationOnce((() => pending.promise) as never)
+    moveIssue.mockImplementationOnce((() => pending.promise) as never)
     renderBoard()
     await screen.findByText('Todo de Ana')
     const callsBefore = listIssues.mock.calls.length
@@ -257,8 +292,8 @@ describe('kanban board: optimistic move', () => {
     await user.selectOptions(moveSelect('Todo de Ana'), 'done')
 
     // El servidor todavía no respondió y la tarjeta ya está en la nueva columna.
-    expect(updateIssue).toHaveBeenCalledWith({
-      data: { id: 'a', status: 'done' },
+    expect(moveIssue).toHaveBeenCalledWith({
+      data: { id: 'a', status: 'done', afterId: null },
     })
     await waitFor(() =>
       expect(column('Hecho').getByText('Todo de Ana')).toBeTruthy(),
@@ -277,7 +312,7 @@ describe('kanban board: optimistic move', () => {
   it('puts the card back in its column and says why when the server fails', async () => {
     const user = userEvent.setup()
     const pending = deferred<IssueDto>()
-    updateIssue.mockImplementationOnce((() => pending.promise) as never)
+    moveIssue.mockImplementationOnce((() => pending.promise) as never)
     renderBoard()
     await screen.findByText('Todo de Ana')
 
@@ -305,7 +340,7 @@ describe('kanban board: optimistic move', () => {
   it('restores the card by itself, without waiting for the server to be asked again', async () => {
     const user = userEvent.setup()
     const pending = deferred<IssueDto>()
-    updateIssue.mockImplementationOnce((() => pending.promise) as never)
+    moveIssue.mockImplementationOnce((() => pending.promise) as never)
     renderBoard()
     await screen.findByText('Todo de Ana')
 
@@ -327,7 +362,7 @@ describe('kanban board: optimistic move', () => {
 
   it('explains a permission error from the server and restores the card', async () => {
     const user = userEvent.setup()
-    updateIssue.mockRejectedValueOnce(
+    moveIssue.mockRejectedValueOnce(
       errorResponse('FORBIDDEN', 'You cannot edit this issue', 403),
     )
     renderBoard()
@@ -345,8 +380,8 @@ describe('kanban board: optimistic move', () => {
     const user = userEvent.setup()
     const first = deferred<IssueDto>()
     const second = deferred<IssueDto>()
-    updateIssue.mockImplementationOnce((() => first.promise) as never)
-    updateIssue.mockImplementationOnce((() => second.promise) as never)
+    moveIssue.mockImplementationOnce((() => first.promise) as never)
+    moveIssue.mockImplementationOnce((() => second.promise) as never)
     renderBoard()
     await screen.findByText('Todo de Ana')
 
@@ -376,7 +411,7 @@ describe('kanban board: optimistic move', () => {
     renderBoard()
     await screen.findByText('Todo de Ana')
     await user.selectOptions(moveSelect('Todo de Ana'), 'todo')
-    expect(updateIssue).not.toHaveBeenCalled()
+    expect(moveIssue).not.toHaveBeenCalled()
   })
 
   it('keeps the persisted state after a reload', async () => {
@@ -384,7 +419,7 @@ describe('kanban board: optimistic move', () => {
     renderBoard()
     await screen.findByText('Todo de Ana')
     await user.selectOptions(moveSelect('Todo de Ana'), 'done')
-    await waitFor(() => expect(updateIssue).toHaveBeenCalled())
+    await waitFor(() => expect(moveIssue).toHaveBeenCalled())
     cleanup()
 
     // "Recargar": una pantalla nueva, sin caché, que pide todo al servidor.
@@ -604,5 +639,286 @@ describe('kanban board: creating a new issue', () => {
 
     expect(await screen.findByText('El título es obligatorio')).toBeTruthy()
     expect(createIssue).not.toHaveBeenCalled()
+  })
+})
+
+// ---- Orden manual dentro de la columna ----------------------------------------
+// Se simula lo que dnd-kit entrega al soltar una tarjeta: cuál, sobre qué, y en
+// qué mitad de esa tarjeta quedó el centro de la arrastrada.
+const rect = (top: number) => ({
+  top,
+  height: 20,
+  left: 0,
+  width: 100,
+  bottom: top + 20,
+  right: 100,
+})
+function dragEvent(activeId: string, overId: string, below: boolean) {
+  return {
+    active: {
+      id: activeId,
+      rect: { current: { initial: null, translated: rect(below ? 90 : 10) } },
+    },
+    over: { id: overId, rect: rect(40) },
+  } as never
+}
+const dropOn = (activeId: string, overId: string, below = true) =>
+  act(() => dnd.props.onDragEnd?.(dragEvent(activeId, overId, below)))
+const hoverOn = (activeId: string, overId: string, below = true) =>
+  act(() => dnd.props.onDragMove?.(dragEvent(activeId, overId, below)))
+// Los títulos de una columna, de arriba hacia abajo.
+const titlesOf = (name: string) =>
+  column(name)
+    .getAllByRole('link')
+    .map((link) => link.textContent)
+
+describe('kanban board: ordering cards inside a column', () => {
+  // «Por hacer», de arriba hacia abajo: Todo de Ana (a), Todo de Luis (b), Sin asignar (e)
+
+  it('starts with the saved order of each column', async () => {
+    renderBoard()
+    await screen.findByText('Todo de Ana')
+    expect(titlesOf('Por hacer')).toEqual([
+      'Todo de Ana',
+      'Todo de Luis',
+      'Sin asignar',
+    ])
+  })
+
+  it('moves a card down inside its column, instantly, and sends where it was dropped', async () => {
+    const pending = deferred<IssueDto>()
+    moveIssue.mockImplementationOnce((() => pending.promise) as never)
+    renderBoard()
+    await screen.findByText('Todo de Ana')
+
+    await dropOn('a', 'b', true) // «Todo de Ana» debajo de «Todo de Luis»
+
+    expect(moveIssue).toHaveBeenCalledWith({
+      data: { id: 'a', status: 'todo', afterId: 'b' },
+    })
+    // Ya está en su nuevo lugar aunque el servidor no respondió.
+    await waitFor(() =>
+      expect(titlesOf('Por hacer')).toEqual([
+        'Todo de Luis',
+        'Todo de Ana',
+        'Sin asignar',
+      ]),
+    )
+    pending.resolve(rows[0]!)
+  })
+
+  it('moves a card up when it is dropped on the upper half of another one', async () => {
+    renderBoard()
+    await screen.findByText('Todo de Ana')
+
+    await dropOn('e', 'b', false) // «Sin asignar» encima de «Todo de Luis»
+
+    expect(moveIssue).toHaveBeenCalledWith({
+      data: { id: 'e', status: 'todo', afterId: 'a' },
+    })
+    await waitFor(() =>
+      expect(titlesOf('Por hacer')).toEqual([
+        'Todo de Ana',
+        'Sin asignar',
+        'Todo de Luis',
+      ]),
+    )
+  })
+
+  it('puts a card at the very top when it is dropped above the first one', async () => {
+    renderBoard()
+    await screen.findByText('Todo de Ana')
+    await dropOn('e', 'a', false)
+    expect(moveIssue).toHaveBeenCalledWith({
+      data: { id: 'e', status: 'todo', afterId: null },
+    })
+    await waitFor(() =>
+      expect(titlesOf('Por hacer')).toEqual([
+        'Sin asignar',
+        'Todo de Ana',
+        'Todo de Luis',
+      ]),
+    )
+  })
+
+  it('drops between two cards of ANOTHER column and changes the status', async () => {
+    renderBoard()
+    await screen.findByText('Todo de Ana')
+
+    await dropOn('a', 'c', true) // debajo de «Progreso de Ana»
+
+    expect(moveIssue).toHaveBeenCalledWith({
+      data: { id: 'a', status: 'in_progress', afterId: 'c' },
+    })
+    await waitFor(() =>
+      expect(titlesOf('En progreso')).toEqual([
+        'Progreso de Ana',
+        'Todo de Ana',
+      ]),
+    )
+    expect(titlesOf('Por hacer')).toEqual(['Todo de Luis', 'Sin asignar'])
+  })
+
+  it('puts a card at the end of a column when it is dropped on the empty part of the column', async () => {
+    renderBoard()
+    await screen.findByText('Todo de Ana')
+    await dropOn('a', 'done') // soltada sobre la columna «Hecho», no sobre una tarjeta
+    expect(moveIssue).toHaveBeenCalledWith({
+      data: { id: 'a', status: 'done', afterId: 'd' },
+    })
+    await waitFor(() =>
+      expect(titlesOf('Hecho')).toEqual(['Hecho de Luis', 'Todo de Ana']),
+    )
+  })
+
+  it('does nothing when the card is dropped where it already was', async () => {
+    renderBoard()
+    await screen.findByText('Todo de Ana')
+    await dropOn('a', 'a') // sobre sí misma
+    await dropOn('b', 'a', true) // debajo de «a»: donde ya está «b»
+    await dropOn('a', 'b', false) // encima de «b»: donde ya está «a»
+    expect(moveIssue).not.toHaveBeenCalled()
+  })
+
+  it('puts the card back in its place and says why when the server rejects the reorder', async () => {
+    moveIssue.mockRejectedValueOnce(
+      errorResponse('FORBIDDEN', 'You cannot edit this issue', 403),
+    )
+    renderBoard()
+    await screen.findByText('Todo de Ana')
+
+    await dropOn('a', 'b', true)
+
+    expect(
+      await screen.findByText(
+        /No se pudo cambiar de lugar «Todo de Ana»: No puedes editar este issue/,
+      ),
+    ).toBeTruthy()
+    await waitFor(() =>
+      expect(titlesOf('Por hacer')).toEqual([
+        'Todo de Ana',
+        'Todo de Luis',
+        'Sin asignar',
+      ]),
+    )
+  })
+
+  it('restores the exact previous place by itself, without waiting for a refresh', async () => {
+    const pending = deferred<IssueDto>()
+    moveIssue.mockImplementationOnce((() => pending.promise) as never)
+    renderBoard()
+    await screen.findByText('Todo de Ana')
+    await dropOn('a', 'b', true)
+    await waitFor(() => expect(titlesOf('Por hacer')[0]).toBe('Todo de Luis'))
+
+    listIssues.mockImplementation((() => new Promise(() => {})) as never) // el refresco queda colgado
+    pending.reject(errorResponse('INTERNAL', 'Internal server error', 500))
+
+    await waitFor(() =>
+      expect(titlesOf('Por hacer')).toEqual([
+        'Todo de Ana',
+        'Todo de Luis',
+        'Sin asignar',
+      ]),
+    )
+  })
+
+  it('only announces a move between columns, not a reorder inside one', async () => {
+    renderBoard()
+    await screen.findByText('Todo de Ana')
+
+    await dropOn('a', 'b', true)
+    await waitFor(() => expect(moveIssue).toHaveBeenCalledTimes(1))
+    await waitFor(() => expect(titlesOf('Por hacer')[1]).toBe('Todo de Ana'))
+    expect(screen.queryByText(/pasó a/)).toBeNull()
+
+    await dropOn('b', 'c', true)
+    expect(
+      await screen.findByText(/«Todo de Luis» pasó a «En progreso»/),
+    ).toBeTruthy()
+  })
+
+  it('keeps the new order after reloading the page', async () => {
+    renderBoard()
+    await screen.findByText('Todo de Ana')
+    await dropOn('a', 'e', true) // «Todo de Ana» al final
+    await waitFor(() => expect(moveIssue).toHaveBeenCalled())
+    await waitFor(() =>
+      expect(titlesOf('Por hacer')).toEqual([
+        'Todo de Luis',
+        'Sin asignar',
+        'Todo de Ana',
+      ]),
+    )
+    cleanup()
+
+    renderBoard() // "recargar": pantalla nueva, sin caché
+    await screen.findByText('Progreso de Ana')
+    expect(titlesOf('Por hacer')).toEqual([
+      'Todo de Luis',
+      'Sin asignar',
+      'Todo de Ana',
+    ])
+  })
+
+  it('moves a card to the top of the new column with the "Mover a" selector', async () => {
+    const user = userEvent.setup()
+    renderBoard()
+    await screen.findByText('Todo de Ana')
+    await user.selectOptions(moveSelect('Todo de Ana'), 'done')
+    expect(moveIssue).toHaveBeenCalledWith({
+      data: { id: 'a', status: 'done', afterId: null },
+    })
+    await waitFor(() =>
+      expect(titlesOf('Hecho')).toEqual(['Todo de Ana', 'Hecho de Luis']),
+    )
+  })
+})
+
+describe('kanban board: insertion line while dragging', () => {
+  const lines = () =>
+    document.querySelectorAll('li[class*="after:absolute"]').length
+  const topLines = () => document.querySelectorAll('li[aria-hidden]').length
+
+  it('shows a line under the card the dragged one would go below, and removes it on drop', async () => {
+    renderBoard()
+    await screen.findByText('Todo de Ana')
+    expect(lines()).toBe(0)
+
+    await hoverOn('a', 'b', true) // «a» pasaría a estar debajo de «b»
+    expect(lines()).toBe(1)
+    const withLine = document.querySelector('li[class*="after:absolute"]')!
+    expect(
+      within(withLine as HTMLElement).getByText('Todo de Luis'),
+    ).toBeTruthy()
+
+    await dropOn('a', 'b', true)
+    await waitFor(() => expect(lines()).toBe(0))
+  })
+
+  it('shows the line at the top of the column when it would become the first card', async () => {
+    renderBoard()
+    await screen.findByText('Todo de Ana')
+    expect(topLines()).toBe(0)
+    await hoverOn('e', 'a', false)
+    expect(topLines()).toBe(1)
+    expect(lines()).toBe(0)
+  })
+
+  it('shows no line when dropping would change nothing', async () => {
+    renderBoard()
+    await screen.findByText('Todo de Ana')
+    await hoverOn('a', 'a', true)
+    await hoverOn('b', 'a', true)
+    expect(lines() + topLines()).toBe(0)
+  })
+
+  it('removes the line when the drag is cancelled', async () => {
+    renderBoard()
+    await screen.findByText('Todo de Ana')
+    await hoverOn('a', 'b', true)
+    expect(lines()).toBe(1)
+    act(() => dnd.props.onDragCancel?.({} as never))
+    expect(lines()).toBe(0)
   })
 })

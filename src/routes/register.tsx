@@ -70,7 +70,7 @@ function RegisterPage() {
                 <p className="text-sm text-destructive">{fieldErrors.email}</p>
               )}
             </div>
-            <div className="space-y-2">
+            <div className="space-y-2 pb-2">
               <Label htmlFor="password">Contraseña</Label>
               <PasswordInput
                 id="password"

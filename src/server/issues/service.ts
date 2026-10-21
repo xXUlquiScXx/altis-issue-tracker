@@ -4,17 +4,23 @@ import {
   count,
   desc,
   eq,
+  gt,
   ilike,
   inArray,
   isNull,
+  min,
+  ne,
   or,
+  sql,
 } from 'drizzle-orm'
 import { alias } from 'drizzle-orm/pg-core'
 import { db } from '@/db'
 import { issueEvents, issues, users } from '@/db/schema'
+import { fitsBetween, slotBetween } from '@/lib/position'
 import type {
   CreateIssueInput,
   ListIssuesInput,
+  MoveIssueInput,
   UpdateIssueInput,
 } from '@/lib/schemas'
 import type {
@@ -23,6 +29,7 @@ import type {
   IssuePage,
   OrgUser,
   SessionUser,
+  Status,
 } from '@/lib/types'
 import { can } from '../authz'
 import { AppError } from '../errors'
@@ -39,6 +46,7 @@ function selectIssues(executor: Executor) {
       description: issues.description,
       status: issues.status,
       priority: issues.priority,
+      position: issues.position,
       assigneeId: issues.assigneeId,
       assigneeName: assignee.name,
       createdBy: issues.createdBy,
@@ -130,6 +138,67 @@ function normalizeDescription(description: string | null | undefined) {
   return trimmed ? trimmed : null
 }
 
+// La transacción (`tx`) de db.transaction, para poder escribir dentro de ella.
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0]
+
+// Vuelve a numerar una columna del kanban (1, 2, 3...) conservando su orden.
+// Solo hace falta si, de tanto promediar, dos posiciones quedaron pegadas.
+async function rebalanceColumn(tx: Tx, orgId: string, status: Status) {
+  await tx.execute(sql`
+    UPDATE issues SET position = ranked.rn
+    FROM (
+      SELECT id, row_number() OVER (ORDER BY position, id) AS rn
+      FROM issues WHERE org_id = ${orgId} AND status = ${status}
+    ) AS ranked
+    WHERE issues.id = ranked.id`)
+}
+
+// Posición de una tarjeta que se coloca justo debajo de `afterId` en esa columna
+// de esa organización. Sin `afterId` (o si esa tarjeta ya no está en la columna,
+// por ejemplo porque otra persona la movió o la borró) va al principio.
+// `selfId` es la propia tarjeta, que no cuenta como vecina de sí misma.
+async function positionInColumn(
+  tx: Tx,
+  orgId: string,
+  status: Status,
+  selfId: string | null,
+  afterId: string | null | undefined,
+) {
+  const column = and(
+    eq(issues.orgId, orgId),
+    eq(issues.status, status),
+    selfId ? ne(issues.id, selfId) : undefined,
+  )
+
+  // Máximo dos vueltas: la segunda solo ocurre después de renumerar la columna.
+  for (let attempt = 0; attempt < 2; attempt++) {
+    if (afterId) {
+      const [after] = await tx
+        .select({ position: issues.position })
+        .from(issues)
+        .where(and(column, eq(issues.id, afterId)))
+        .limit(1)
+      if (after) {
+        const [below] = await tx
+          .select({ next: min(issues.position) })
+          .from(issues)
+          .where(and(column, gt(issues.position, after.position)))
+        const next = below?.next ?? null
+        const slot = slotBetween(after.position, next)
+        if (fitsBetween(slot, after.position, next)) return slot
+        await rebalanceColumn(tx, orgId, status)
+        continue
+      }
+    }
+    const [first] = await tx
+      .select({ top: min(issues.position) })
+      .from(issues)
+      .where(column)
+    return slotBetween(null, first?.top ?? null)
+  }
+  throw new Error('Could not find a position in the column')
+}
+
 export async function createIssueForUser(
   user: SessionUser,
   input: CreateIssueInput,
@@ -146,6 +215,14 @@ export async function createIssueForUser(
   // Issue y evento "created" se guardan juntos: o quedan los dos o ninguno.
   return db.transaction(async (tx) => {
     const now = new Date()
+    // Un issue nuevo queda arriba de su columna, como siempre.
+    const position = await positionInColumn(
+      tx,
+      user.orgId,
+      input.status,
+      null,
+      null,
+    )
     const [created] = await tx
       .insert(issues)
       .values({
@@ -157,6 +234,7 @@ export async function createIssueForUser(
         assigneeId,
         createdBy: user.id,
         labels: input.labels,
+        position,
         createdAt: now,
         updatedAt: now,
       })
@@ -282,6 +360,14 @@ export async function updateIssueForUser(
     }
     if (input.status !== undefined && input.status !== current.status) {
       changes.status = input.status
+      // Cambiar de columna desde el formulario la deja arriba de la nueva.
+      changes.position = await positionInColumn(
+        tx,
+        user.orgId,
+        input.status,
+        current.id,
+        null,
+      )
     }
     if (input.priority !== undefined && input.priority !== current.priority) {
       changes.priority = input.priority
@@ -312,6 +398,59 @@ export async function updateIssueForUser(
 
       const events = buildChangeEvents(current, changes, user.id, now)
       if (events.length > 0) await tx.insert(issueEvents).values(events)
+    }
+
+    return getIssueForUser(user, current.id, tx)
+  })
+}
+
+// Mover una tarjeta en el kanban: a una columna y debajo de otra tarjeta.
+//  - Si cambia de columna: cambia el estado, deja el evento en el historial y
+//    actualiza `updated_at` (igual que editar el estado).
+//  - Si solo cambia de lugar dentro de su columna: es un reordenamiento y no deja
+//    evento ni toca `updated_at` (no es un cambio de la tarjeta, sino del tablero).
+// Se escribe solo la fila de la tarjeta movida: las demás no cambian.
+export async function moveIssueForUser(
+  user: SessionUser,
+  input: MoveIssueInput,
+): Promise<IssueDto> {
+  return db.transaction(async (tx) => {
+    const [current] = await tx
+      .select()
+      .from(issues)
+      .where(and(eq(issues.id, input.id), eq(issues.orgId, user.orgId)))
+      .for('update')
+    if (!current) throw new AppError('NOT_FOUND', 'Issue not found')
+
+    // Mover una tarjeta es editar su estado: mismas reglas que `updateIssue`.
+    if (!can(user, 'issue:update', current)) {
+      throw new AppError('FORBIDDEN', 'You cannot edit this issue')
+    }
+
+    const statusChanged = input.status !== current.status
+    const position = await positionInColumn(
+      tx,
+      user.orgId,
+      input.status,
+      current.id,
+      input.afterId,
+    )
+
+    const now = new Date()
+    await tx
+      .update(issues)
+      .set({
+        position,
+        ...(statusChanged ? { status: input.status, updatedAt: now } : {}),
+      })
+      .where(eq(issues.id, current.id))
+
+    if (statusChanged) {
+      await tx
+        .insert(issueEvents)
+        .values(
+          buildChangeEvents(current, { status: input.status }, user.id, now),
+        )
     }
 
     return getIssueForUser(user, current.id, tx)

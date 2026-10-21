@@ -8,12 +8,14 @@ import { cn } from '@/lib/utils'
 interface Props {
   status: Status
   count: number
+  // ¿Se va a soltar una tarjeta al principio de esta columna? Dibuja la línea arriba.
+  lineOnTop: boolean
   children: ReactNode
 }
 
 // Una columna del tablero. El `id` del droppable ES el estado: así, al soltar una
 // tarjeta, sabemos a qué estado pasarla.
-export function KanbanColumn({ status, count, children }: Props) {
+export function KanbanColumn({ status, count, lineOnTop, children }: Props) {
   const { setNodeRef, isOver } = useDroppable({ id: status })
 
   return (
@@ -32,7 +34,13 @@ export function KanbanColumn({ status, count, children }: Props) {
         </h2>
         <Badge variant="secondary">{count}</Badge>
       </header>
-      <ul className="flex min-h-24 flex-col gap-2">
+      <ul className="relative flex min-h-24 flex-col gap-2">
+        {lineOnTop && (
+          <li
+            aria-hidden
+            className="absolute inset-x-0 -top-[5px] h-0.5 rounded bg-primary"
+          />
+        )}
         {count === 0 ? (
           <li className="rounded-lg border border-dashed p-4 text-center text-xs text-muted-foreground">
             Sin issues
