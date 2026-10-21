@@ -81,15 +81,15 @@ Seguridad extra opcional: FK compuestas o chequeo en servidor de que `assignee.o
 - 🟢 Commit: `chore: scaffold tanstack start app`
 
 ### Fase 2 — Base de datos con Drizzle (~1 h 15) [P0]
-- [ ] `src/db/schema.ts` con las tablas de la sección 1 (enums con `pgEnum`).
-- [ ] `drizzle.config.ts`; `pnpm db:generate` → carpeta `drizzle/` con migraciones SQL **commiteadas**.
-- [ ] `src/db/index.ts`: cliente `postgres(DATABASE_URL, { prepare: false })` (obligatorio con el pooler en modo transacción).
-- [ ] Script de migración (`db:migrate`) usando `DATABASE_URL_MIGRATE`.
-- [ ] `src/db/seed.ts` (idempotente o con truncado previo):
+- [x] `src/db/schema.ts` con las tablas de la sección 1 (enums con `pgEnum`).
+- [x] `drizzle.config.ts`; `pnpm db:generate` → carpeta `drizzle/` con migraciones SQL **commiteadas**.
+- [x] `src/db/index.ts`: cliente `postgres(DATABASE_URL, { prepare: false })` (obligatorio con el pooler en modo transacción).
+- [x] Script de migración (`db:migrate`) usando `DATABASE_URL_MIGRATE`. Los scripts `db:*` cargan `.env` con `--env-file-if-exists`. Se añadió también `db:reset:test` con su guard (se usa en la fase 13).
+- [x] `src/db/seed.ts` (idempotente o con truncado previo):
   - Orgs **Acme** y **Beta**; en cada una 1 admin + 2 members. Credenciales fijas y documentadas (ej. `admin@acme.test` / `Password123!`).
   - **≥ 30 issues** repartidos entre ambas orgs, variados en status, priority, assignee (incluye sin asignar) y labels.
   - Comentarios de ejemplo y eventos de historial coherentes con cada issue (al menos `created`, y algunos cambios).
-- [ ] Aplicar migración + seed contra Supabase y verificar en el Table Editor.
+- [x] Aplicar migración + seed contra Supabase y verificar en el Table Editor. Verificado por consulta con el cliente de la app: 2 orgs, 6 usuarios, 32 issues, 24 comentarios, 90 eventos.
 - 🟢 Commit: `feat(db): drizzle schema, migrations and seed`
 
 ### Fase 3 — Primer despliegue "esqueleto" (~45 min) [P0]
