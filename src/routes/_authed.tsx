@@ -1,4 +1,5 @@
 import { Outlet, createFileRoute, redirect } from '@tanstack/react-router'
+import { AppHeader } from '@/components/app-header'
 import { getMe } from '@/server/auth/functions'
 
 // Layout de las rutas que exigen sesión. Esto solo decide qué página mostrar:
@@ -14,5 +15,15 @@ export const Route = createFileRoute('/_authed')({
       throw error
     }
   },
-  component: Outlet,
+  component: AuthedLayout,
 })
+
+function AuthedLayout() {
+  const { user } = Route.useRouteContext()
+  return (
+    <>
+      <AppHeader user={user} />
+      <Outlet />
+    </>
+  )
+}

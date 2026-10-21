@@ -1,5 +1,6 @@
 import { Link, createFileRoute } from '@tanstack/react-router'
 import { PasswordInput } from '@/components/password-input'
+import { ThemeToggle } from '@/components/theme-toggle'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -36,6 +37,8 @@ function LoginPage() {
 
   return (
     <main className="grid min-h-svh place-items-center p-4">
+      {/* Flotante: estas pantallas no tienen barra superior. */}
+      <ThemeToggle className="fixed top-3 right-3" />
       <Card className="w-full max-w-sm">
         <CardHeader>
           <CardTitle>Iniciar sesión</CardTitle>
