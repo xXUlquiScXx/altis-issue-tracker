@@ -196,6 +196,7 @@ Mejoras tras la prueba manual en móvil:
 - [x] `useMutation` con patrón optimista (`src/hooks/use-move-issue.ts`): `onMutate` (cancelar queries, guardar copia, mover tarjeta) → `onError` (restaurar solo esa tarjeta + aviso con el motivo) → `onSettled` (invalidar; con varios movimientos a la vez, solo el último refresca).
 - [x] Recargar la página debe mostrar el estado persistido.
 - [x] Click en tarjeta abre el detalle (fase 10): el título es un enlace real y toda la tarjeta lo abre (salvo asa y selector).
+- [x] Botón «Nuevo issue» también en el tablero (mismo formulario y mismas reglas que en la lista: el member solo crea para sí mismo). La tarjeta nueva aparece en la columna del estado elegido sin recargar. Se añadió después de la entrega inicial.
 - [x] Tests en `tests/ui/kanban-board.test.tsx` y `kanban-logic.test.ts`: agrupación, movimiento optimista, reversión al fallar el servidor (con aviso), movimientos simultáneos, permisos y filtros. Cubren la parte de kanban de la fase 13. El gesto físico de arrastrar no se prueba automáticamente.
 - 🟢 Commit: `feat(ui): kanban board with optimistic updates`
 
