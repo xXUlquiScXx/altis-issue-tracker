@@ -213,11 +213,11 @@ Mejoras tras la prueba manual en móvil:
 Preparar BD de prueba: `TEST_DATABASE_URL` apuntando a un Postgres **aislado** (Docker local `postgres:16` o instalación local; **nunca** la BD de Supabase de producción). Script `db:reset:test` que migra y limpia. Documentar en README.
 
 **Servidor** (`tests/server/*.test.ts`, llamando a las funciones/handlers reales contra la BD de prueba):
-- [ ] Sin sesión → `UNAUTHENTICATED` en listar/crear/editar/borrar.
-- [ ] Usuario de Acme no puede leer ni modificar issue/comentario/historial de Beta (aunque use su ID) → `NOT_FOUND`.
+- [x] Sin sesión → `UNAUTHENTICATED` en listar/crear/editar/borrar. (`tests/server/session-required.test.ts`.) Se prueban los middleware reales `requireUser` (sin sesión lanza `UNAUTHENTICATED` y no llega al handler) y `errorMiddleware` (401/403/404/400/429 y 500 sin filtrar detalles internos), y una prueba de política que exige `requireUser` en **toda** server function salvo las públicas (`register`, `login`, `logout`), para que una función nueva sin protección haga fallar el test. Limitación: no se hace una petición HTTP completa dentro de los tests (el motor interno de TanStack Start necesita el contexto de una petición real); esa comprobación se hizo a mano contra un servidor en las fases 5 a 8.
+- [x] Usuario de Acme no puede leer ni modificar issue/comentario/historial de Beta (aunque use su ID) → `NOT_FOUND`. (Cubierto en `issues.test.ts` — leer, editar, borrar y listar —, `comments.test.ts` — listar, comentar, editar y borrar — e `history.test.ts` — leer el historial.)
 - [x] Member: crea solo asignado a sí mismo; edita solo los suyos; no reasigna; no borra. Admin: puede todo en su org. (Hecho en la fase 6: `tests/server/issues.test.ts`.)
 - [x] Comentarios: otro usuario (incluso admin) no puede editar/borrar un comentario ajeno. (Hecho en la fase 8.)
-- [ ] Registro: nunca crea admin aunque se envíe `role: 'admin'`.
+- [x] Registro: nunca crea admin aunque se envíe `role: 'admin'`. (`tests/server/auth-service.test.ts`: también ignora el `orgId` enviado, normaliza el email, guarda la contraseña como hash y el login no revela qué correos existen.)
 
 **Persistencia** (`tests/server/history.test.ts`):
 - [x] Cambiar status guarda el nuevo estado **y** el evento con from/to correctos. (Hecho en la fase 7.)
