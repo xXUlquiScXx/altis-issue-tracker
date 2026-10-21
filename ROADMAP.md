@@ -173,6 +173,12 @@ Mejoras de UX del login (pedidas tras la prueba manual):
 - [x] Tests de UI en `tests/ui/issues-list.test.tsx` (filtros, búsqueda, paginación, vacío, error, permisos, formulario y borrado). Adelantan la parte de interfaz de la fase 13.
 - 🟢 Commit: `feat(ui): issue list with filters and pagination`
 
+Mejoras tras la prueba manual en móvil:
+- [x] La fecha de «Actualizado» ya no desaparece en pantallas chicas: se pliega como última fila bajo el título, alineada a la derecha.
+- [x] Paginación arriba (debajo de los filtros) y abajo de la lista; en móvil los botones muestran solo el ícono.
+- [x] Formulario en móvil: el diálogo se ajusta al área realmente visible cuando sale el teclado (`visualViewport`), se puede hacer scroll dentro de él y el campo enfocado se lleva a la vista. El `viewport` incluye `interactive-widget=resizes-content` para Android.
+- 🟢 Commit: `fix(ui): mobile list layout and form with keyboard`
+
 ### Fase 10 — Detalle, comentarios e historial en UI (~1 h 30) [P0]
 - [ ] Detalle en modal (o ruta `/issues/$id`): título, descripción con **markdown renderizado**, metadatos, edición según permisos.
 - [ ] Sección comentarios: listar (autor + fecha), crear; editar/borrar solo en los propios.
