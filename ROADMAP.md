@@ -191,11 +191,12 @@ Mejoras tras la prueba manual en móvil:
 - 🟢 Commit: `feat(ui): issue detail with comments and history`
 
 ### Fase 11 — Kanban con actualización optimista (~1 h 30) [P0]
-- [ ] 3 columnas: To do / In progress / Done (consultas por columna con los mismos filtros, o una consulta con `pageSize` alto; documentar la decisión).
-- [ ] Drag & drop con `@dnd-kit` (sensores de pointer **y** touch). Solo se puede arrastrar una tarjeta si `can(update)`; si no, no es draggable (y se explica con tooltip).
-- [ ] `useMutation` con patrón optimista: `onMutate` (cancelar queries, guardar snapshot, mover tarjeta) → `onError` (restaurar snapshot + toast claro) → `onSettled` (invalidar).
-- [ ] Recargar la página debe mostrar el estado persistido.
-- [ ] Click en tarjeta abre el detalle (fase 10).
+- [x] 3 columnas: Por hacer / En progreso / Hecho. **Decisión:** una sola consulta con `pageSize` 100 (el máximo del servidor) en vez de una por columna: más simple, una sola caché que actualizar de forma optimista, y si hay más de 100 issues el tablero avisa y se acota con filtros (prioridad, responsable y búsqueda; el estado es la columna). Filtros en la URL como en la lista.
+- [x] Drag & drop con `@dnd-kit` (sensores de mouse, touch y teclado; se separan mouse y dedo para que en celular un deslizamiento siga haciendo scroll). Se arrastra desde el asa de la tarjeta. Solo se puede arrastrar una tarjeta si `can(update)`; si no, no es draggable y lleva un candado con la explicación. Alternativa sin arrastre (teclado, lector de pantalla, celular): el selector «Mover a» de cada tarjeta.
+- [x] `useMutation` con patrón optimista (`src/hooks/use-move-issue.ts`): `onMutate` (cancelar queries, guardar copia, mover tarjeta) → `onError` (restaurar solo esa tarjeta + aviso con el motivo) → `onSettled` (invalidar; con varios movimientos a la vez, solo el último refresca).
+- [x] Recargar la página debe mostrar el estado persistido.
+- [x] Click en tarjeta abre el detalle (fase 10): el título es un enlace real y toda la tarjeta lo abre (salvo asa y selector).
+- [x] Tests en `tests/ui/kanban-board.test.tsx` y `kanban-logic.test.ts`: agrupación, movimiento optimista, reversión al fallar el servidor (con aviso), movimientos simultáneos, permisos y filtros. Cubren la parte de kanban de la fase 13. El gesto físico de arrastrar no se prueba automáticamente.
 - 🟢 Commit: `feat(ui): kanban board with optimistic updates`
 
 ### Fase 12 — Pulido responsive y UX (~45 min) [P0]
@@ -221,7 +222,7 @@ Preparar BD de prueba: `TEST_DATABASE_URL` apuntando a un Postgres **aislado** (
 
 **Interfaz** (`tests/ui/*.test.tsx`, Testing Library, servidor mockeado):
 - [x] Interacción de filtros o paginación (p. ej. elegir status "done" cambia la petición y la lista; "siguiente página" pide `page=2`). (Hecho en la fase 9.)
-- [ ] Kanban: al mover una tarjeta y fallar el servidor, la tarjeta **vuelve** a su columna y aparece el mensaje de error.
+- [x] Kanban: al mover una tarjeta y fallar el servidor, la tarjeta **vuelve** a su columna y aparece el mensaje de error. (Hecho en la fase 11.)
 - 🟢 Commit: `test: server, persistence and ui behavior tests`
 
 ### Fase 14 — CI completo (~30 min) [P0]
