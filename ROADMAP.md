@@ -117,8 +117,15 @@ Seguridad extra opcional: FK compuestas o chequeo en servidor de que `assignee.o
 - [x] **Rate limit** en `register`/`login` (por IP+email; ventana fija, en memoria). Documentar en README que en serverless es por instancia (trade-off).
 - [x] Middleware `requireUser` que resuelve el usuario desde la cookie y lanza `UNAUTHENTICATED` si falta o expiró.
 - [x] Expiración: si el JWT venció → 401 y el cliente redirige a `/login` (re-login simple, permitido por el PDF). Verificado: token vencido → 401; sin cookie, el SSR redirige 307 a `/login`.
-- [ ] Rutas UI: `/login`, `/register`; guard en rutas protegidas. Hechas (`_authed.tsx` hace de guard); falta la prueba manual en el navegador.
+- [x] Rutas UI: `/login`, `/register`; guard en rutas protegidas (`_authed.tsx` hace de guard). Probado a mano en el navegador: login, logout, contraseña errónea y email duplicado.
 - 🟢 Commit: `feat(auth): register, login, jwt cookie session`
+
+Mejoras de UX del login (pedidas tras la prueba manual):
+- [x] Botón de ojo para mostrar/ocultar la contraseña (`src/components/password-input.tsx`, usado en login y registro).
+- [x] Checkbox "Recordar mi correo": guarda solo el correo (nunca la contraseña) en `localStorage` tras un login exitoso y lo muestra al volver al login, por ejemplo al expirar la sesión.
+- [x] La lógica común de los formularios (validar, enviar, errores, carga) se extrajo al hook `src/hooks/use-auth-form.ts`; las páginas quedan solo con el HTML. Se evita duplicar código entre login y registro.
+- [x] Tests de comportamiento en `tests/ui/login-extras.test.tsx`.
+- 🟢 Commit: `feat(auth): password toggle and remembered email`
 
 ### Fase 6 — Autorización + backend de issues (~2 h) [P0]
 - [ ] `src/server/authz.ts` con `can(user, action, issue?)`; acciones: `issue:create`, `issue:update`, `issue:assign`, `issue:delete`, `comment:create`, `comment:update`, `comment:delete`.
