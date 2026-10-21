@@ -183,6 +183,7 @@ Mejoras tras la prueba manual en móvil:
 - [x] Detalle en ruta propia `/issues/$id` (en vez de modal, para poder compartir el enlace): título, descripción con **markdown renderizado**, metadatos, edición según permisos. Cualquier persona de la org puede verlo; *Editar* aparece solo si `can` lo permite. Incluye botón **Volver** (retrocede en el historial, así la lista reaparece con sus filtros, página y scroll; si el enlace se abrió directo, va a la lista) y **Copiar enlace**. En la lista, el título es un enlace real (abrir en otra pestaña con Ctrl/Cmd+clic) y toda la celda lo abre en móvil. Código: `src/routes/_authed/issues.$id.tsx` y `src/components/issues/issue-detail-page.tsx`; Markdown seguro en `src/components/markdown.tsx` (sin HTML crudo, sin imágenes, enlaces con `noopener`).
 - [x] Enlace compartido sin sesión: se pide iniciar sesión y se vuelve a ese enlace después (`?redirect=`, validado para aceptar solo rutas internas: `src/lib/safe-redirect.ts`). También si la sesión expira a mitad de uso.
 - 🟢 Commit (avance del detalle): `feat(ui): issue detail page with shareable link`
+- [x] Página 404 propia en español para direcciones inexistentes (`src/components/not-found.tsx`, configurada como `defaultNotFoundComponent` del router). Quita el aviso `notFoundComponent option was not configured` del log.
 - [ ] Sección comentarios: listar (autor + fecha), crear; editar/borrar solo en los propios.
 - [ ] Sección historial: lista cronológica "X cambió status de `todo` a `in_progress` · fecha".
 - [ ] Estados loading / vacío / error en cada sección.
