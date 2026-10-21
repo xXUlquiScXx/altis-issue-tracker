@@ -68,3 +68,14 @@ export interface IssueEventDto {
   actorName: string
   createdAt: Date
 }
+
+export interface CommentDto {
+  id: string
+  issueId: string
+  authorId: string
+  authorName: string
+  body: string
+  createdAt: Date
+  // Si es posterior a createdAt, el comentario fue editado.
+  updatedAt: Date
+}

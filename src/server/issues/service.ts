@@ -10,7 +10,6 @@ import {
   or,
 } from 'drizzle-orm'
 import { alias } from 'drizzle-orm/pg-core'
-import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js'
 import { db } from '@/db'
 import { issueEvents, issues, users } from '@/db/schema'
 import type {
@@ -27,9 +26,7 @@ import type {
 } from '@/lib/types'
 import { can } from '../authz'
 import { AppError } from '../errors'
-
-// Sirve tanto para `db` como para una transacción (`tx`).
-type Executor = Pick<PostgresJsDatabase, 'select'>
+import type { Executor } from '../executor'
 
 const assignee = alias(users, 'assignee')
 const creator = alias(users, 'creator')

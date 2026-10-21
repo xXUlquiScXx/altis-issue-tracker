@@ -88,3 +88,28 @@ export const listIssuesSchema = z.object({
 export type CreateIssueInput = z.infer<typeof createIssueSchema>
 export type UpdateIssueInput = z.infer<typeof updateIssueSchema>
 export type ListIssuesInput = z.infer<typeof listIssuesSchema>
+
+// ---- Comentarios ----
+
+const commentBodySchema = z
+  .string()
+  .trim()
+  .min(1, 'Comment is required')
+  .max(5_000, 'Comment is too long')
+
+export const listCommentsSchema = z.object({ issueId: z.uuid() })
+
+export const createCommentSchema = z.object({
+  issueId: z.uuid(),
+  body: commentBodySchema,
+})
+
+export const updateCommentSchema = z.object({
+  id: z.uuid(),
+  body: commentBodySchema,
+})
+
+export const commentIdSchema = z.object({ id: z.uuid() })
+
+export type CreateCommentInput = z.infer<typeof createCommentSchema>
+export type UpdateCommentInput = z.infer<typeof updateCommentSchema>
