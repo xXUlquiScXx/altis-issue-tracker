@@ -205,6 +205,7 @@ Mejoras tras la prueba manual en móvil:
 - [x] Accesibilidad básica: labels en inputs, foco visible en enlaces y botones propios, `aria-label` en botones de icono, `aria-expanded`/`aria-controls` en «Filtros», título de tabla para lectores de pantalla, enlace «Saltar al contenido» y botones táctiles más grandes en celular.
 - [x] Selector (`NativeSelect`) con flecha propia y su espacio, en lugar de la del navegador (que se pegaba al borde y no obedecía al padding).
 - [x] Listas al día: si un issue fue borrado por otra persona, la lista y el tablero se actualizan al descubrirlo (al abrir el detalle, editar o borrar) y también al volver a la pestaña.
+- [x] Botón de actualizar (ícono ⟳) en la lista y en el tablero: vuelve a pedir los datos sin recargar la página, conserva filtros y página, gira y se deshabilita mientras trabaja (`src/components/refresh-button.tsx`).
 - 🟢 Commit: `style(ui): responsive polish and feedback states`
 
 ### Fase 13 — Pruebas obligatorias (~2 h) [P0]
@@ -233,7 +234,7 @@ Preparar BD de prueba: `TEST_DATABASE_URL` apuntando a un Postgres **aislado** (
 - 🟢 Commit (si hay ajustes): `ci: finalize pipeline`
 
 ### Fase 15 — Despliegue final y verificación E2E (~1 h) [P0]
-- [ ] Aplicar migraciones y seed en Supabase (producción) si no están al día.
+- [ ] Aplicar migraciones y seed en Supabase (producción) si no están al día. Comprobar con `pnpm db:status` (solo lectura: dice a qué base apunta, si las migraciones están al día y si el enum `event_type` tiene todos los valores).
 - [ ] Desplegar rama principal en Vercel y recorrer **el flujo completo en la URL pública**, con las dos orgs:
   - registro y login, logout, expiración
   - admin vs member (UI y servidor), aislamiento Acme/Beta
