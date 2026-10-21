@@ -128,14 +128,15 @@ Mejoras de UX del login (pedidas tras la prueba manual):
 - 🟢 Commit: `feat(auth): password toggle and remembered email`
 
 ### Fase 6 — Autorización + backend de issues (~2 h) [P0]
-- [ ] `src/server/authz.ts` con `can(user, action, issue?)`; acciones: `issue:create`, `issue:update`, `issue:assign`, `issue:delete`, `comment:create`, `comment:update`, `comment:delete`.
+- [x] `src/server/authz.ts` con `can(user, action, resource)` (función pura: la usa el servidor para rechazar y la UI para ocultar); acciones: `issue:create`, `issue:update`, `issue:assign`, `issue:delete`, `comment:create`, `comment:update`, `comment:delete`.
   - **admin**: todo sobre issues de su org.
   - **member**: crear (forzando `assignee_id = su propio id`), editar solo issues asignados a él (title, description, labels, status, priority), **no** cambiar `assignee_id`, **no** borrar.
-- [ ] Helper `getIssueForUser(user, id)`: busca por `id AND org_id`; si no existe → `NOT_FOUND`.
-- [ ] Server functions: `listIssues`, `getIssue`, `createIssue`, `updateIssue`, `deleteIssue`, `listOrgUsers` (para el selector de assignee; solo de la org).
-- [ ] `listIssues`: `page`, `pageSize` (máx. 100), filtros combinables `status`, `priority`, `assignee` (id | `unassigned`), búsqueda `q` con `ILIKE` en title y description (escapar `%` y `_`), orden `updated_at desc`. Devuelve `{ items, total, page, pageSize }`.
-- [ ] Validaciones: `title` trim y no vacío, defaults `todo`/`med`, `assignee_id` debe pertenecer a la misma org.
-- [ ] `updated_at` se actualiza en cada cambio efectivo.
+- [x] Helper `getIssueForUser(user, id)` (en `src/server/issues/service.ts`): busca por `id AND org_id`; si no existe → `NOT_FOUND`.
+- [x] Server functions: `listIssues`, `getIssue`, `createIssue`, `updateIssue`, `deleteIssue`, `listOrgUsers` (para el selector de assignee; solo de la org). Están en `src/server/issues/functions.ts`; la lógica, en `service.ts`.
+- [x] `listIssues`: `page`, `pageSize` (máx. 100), filtros combinables `status`, `priority`, `assignee` (id | `unassigned`), búsqueda `q` con `ILIKE` en title y description (escapar `%` y `_`), orden `updated_at desc`. Devuelve `{ items, total, page, pageSize }`.
+- [x] Validaciones: `title` trim y no vacío, defaults `todo`/`med`, `assignee_id` debe pertenecer a la misma org.
+- [x] `updated_at` se actualiza en cada cambio efectivo. `updateIssue` ya corre en una transacción con `FOR UPDATE`; la fase 7 solo añade los eventos dentro de ella.
+- [x] Tests: `tests/server/authz.test.ts` (matriz de permisos) y `tests/server/issues.test.ts` (aislamiento, permisos, filtros, paginación) contra Postgres aislado. Adelantan parte de la fase 13.
 - 🟢 Commit: `feat(issues): crud with org isolation and role permissions`
 
 ### Fase 7 — Historial transaccional (~1 h) [P0]
