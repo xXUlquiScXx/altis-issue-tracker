@@ -1,0 +1,249 @@
+import {
+  DndContext,
+  DragOverlay,
+  KeyboardSensor,
+  MouseSensor,
+  TouchSensor,
+  pointerWithin,
+  rectIntersection,
+  useSensor,
+  useSensors,
+  type CollisionDetection,
+  type DragEndEvent,
+  type DragStartEvent,
+} from '@dnd-kit/core'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
+import { useCallback, useState } from 'react'
+import { IssueFilters } from '@/components/issues/issue-filters'
+import { Button } from '@/components/ui/button'
+import { Skeleton } from '@/components/ui/skeleton'
+import { useMoveIssue } from '@/hooks/use-move-issue'
+import { useOrgUsers } from '@/hooks/use-org-users'
+import { api, isApiError } from '@/lib/api'
+import type { BoardSearch, IssueSearch } from '@/lib/issue-filters'
+import {
+  BOARD_PAGE_SIZE,
+  groupByStatus,
+  statusFromDrop,
+  toBoardInput,
+} from '@/lib/kanban'
+import { STATUS_LABEL } from '@/lib/labels'
+import { apiErrorMessage } from '@/lib/messages'
+import { queryKeys } from '@/lib/query-keys'
+import { STATUSES, type IssueDto, type SessionUser } from '@/lib/types'
+import { can } from '@/server/authz'
+import { listIssues } from '@/server/issues/functions'
+import { KanbanCard, KanbanCardPreview } from './kanban-card'
+import { KanbanColumn } from './kanban-column'
+
+interface Props {
+  user: SessionUser
+  filters: BoardSearch
+  onFiltersChange: (patch: Partial<BoardSearch>) => void
+  issueHref: (issue: IssueDto) => string
+  onViewIssue: (issue: IssueDto) => void
+}
+
+// Primero donde está el puntero; si no hay, la columna que más se solape.
+const collisionDetection: CollisionDetection = (args) => {
+  const pointer = pointerWithin(args)
+  return pointer.length > 0 ? pointer : rectIntersection(args)
+}
+
+export function KanbanBoard({
+  user,
+  filters,
+  onFiltersChange,
+  issueHref,
+  onViewIssue,
+}: Props) {
+  const input = toBoardInput(filters)
+  const { data, isPending, isError, error, refetch } = useQuery({
+    queryKey: queryKeys.issues.board(input),
+    queryFn: () => api(() => listIssues({ data: input })),
+    placeholderData: keepPreviousData,
+  })
+  const { data: users } = useOrgUsers()
+  const move = useMoveIssue(input)
+  const [activeId, setActiveId] = useState<string | null>(null)
+  const [resetKey, setResetKey] = useState(0)
+
+  // Mouse, dedo y teclado. Se separan mouse y dedo (en vez de un solo "pointer")
+  // para que en el celular un deslizamiento normal siga haciendo scroll.
+  const sensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, {
+      activationConstraint: { delay: 150, tolerance: 8 },
+    }),
+    useSensor(KeyboardSensor),
+  )
+
+  const issues = data?.items ?? []
+  const columns = groupByStatus(issues)
+  const activeIssue = issues.find((issue) => issue.id === activeId)
+
+  function handleDragStart(event: DragStartEvent) {
+    setActiveId(String(event.active.id))
+  }
+
+  function handleDragEnd(event: DragEndEvent) {
+    setActiveId(null)
+    const issue = issues.find((item) => item.id === event.active.id)
+    const status = statusFromDrop(event.over?.id, issue?.status)
+    if (issue && status) move.mutate({ issue, status })
+  }
+
+  // Los filtros compartidos hablan de "página" y "estado", que aquí no existen:
+  // se pasa solo lo que cambió (si no, se borrarían los demás filtros).
+  const handleFilters = useCallback(
+    (patch: Partial<IssueSearch>) => {
+      const boardPatch: Partial<BoardSearch> = {}
+      if ('priority' in patch) boardPatch.priority = patch.priority
+      if ('assignee' in patch) boardPatch.assignee = patch.assignee
+      if ('q' in patch) boardPatch.q = patch.q
+      onFiltersChange(boardPatch)
+    },
+    [onFiltersChange],
+  )
+
+  const clearFilters = () => {
+    setResetKey((key) => key + 1)
+    onFiltersChange({ priority: undefined, assignee: undefined, q: undefined })
+  }
+
+  const hasFilters = Boolean(filters.priority || filters.assignee || filters.q)
+
+  return (
+    <section className="space-y-4">
+      <h1 className="text-2xl font-bold">Kanban</h1>
+
+      <IssueFilters
+        key={resetKey}
+        hideStatus
+        filters={{ ...filters, page: undefined, status: undefined }}
+        users={users}
+        onChange={handleFilters}
+        onClear={clearFilters}
+      />
+
+      {data && data.total > BOARD_PAGE_SIZE && (
+        <p role="status" className="text-sm text-muted-foreground">
+          Se muestran los {BOARD_PAGE_SIZE} issues más recientes de {data.total}
+          . Usa los filtros para acotar.
+        </p>
+      )}
+
+      {isPending ? (
+        <BoardSkeleton />
+      ) : isError && !data ? (
+        <div
+          role="alert"
+          className="space-y-3 rounded-lg border border-destructive/40 p-6 text-center"
+        >
+          <p className="font-medium">No se pudo cargar el tablero</p>
+          <p className="text-sm text-muted-foreground">
+            {isApiError(error)
+              ? apiErrorMessage(error)
+              : apiErrorMessage({ code: 'INTERNAL', message: '' })}
+          </p>
+          <Button variant="outline" onClick={() => refetch()}>
+            Reintentar
+          </Button>
+        </div>
+      ) : (
+        <>
+          {hasFilters && issues.length === 0 && (
+            <p className="text-sm text-muted-foreground">
+              Ningún issue coincide con los filtros.
+            </p>
+          )}
+          <DndContext
+            sensors={sensors}
+            collisionDetection={collisionDetection}
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
+            onDragCancel={() => setActiveId(null)}
+            accessibility={{
+              screenReaderInstructions: {
+                draggable:
+                  'Para mover la tarjeta, presiona Espacio y usa las flechas hasta la columna que quieras; presiona Espacio otra vez para soltar o Escape para cancelar. También puedes usar el selector «Mover a» de la tarjeta.',
+              },
+              announcements: {
+                onDragStart: ({ active }) =>
+                  `Agarraste «${issues.find((i) => i.id === active.id)?.title}».`,
+                onDragOver: ({ over }) =>
+                  over ? `Sobre la columna «${labelOf(over.id)}».` : undefined,
+                onDragEnd: ({ over }) =>
+                  over
+                    ? `Soltaste en la columna «${labelOf(over.id)}».`
+                    : 'Soltaste fuera de una columna.',
+                onDragCancel: () => 'Movimiento cancelado.',
+              },
+            }}
+          >
+            <div
+              className={
+                // En celular las columnas se deslizan de lado; desde `sm` van lado a lado.
+                'flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2 sm:snap-none sm:overflow-visible'
+              }
+            >
+              {STATUSES.map((status) => (
+                <KanbanColumn
+                  key={status}
+                  status={status}
+                  count={columns[status].length}
+                >
+                  {columns[status].map((issue) => (
+                    <KanbanCard
+                      key={issue.id}
+                      issue={issue}
+                      href={issueHref(issue)}
+                      // La UI solo oculta el arrastre; el servidor vuelve a comprobar todo.
+                      canMove={can(user, 'issue:update', {
+                        orgId: user.orgId,
+                        assigneeId: issue.assigneeId,
+                      })}
+                      onView={onViewIssue}
+                      onMove={(next) => {
+                        // Elegir el estado en el que ya está no cambia nada.
+                        if (next !== issue.status) {
+                          move.mutate({ issue, status: next })
+                        }
+                      }}
+                    />
+                  ))}
+                </KanbanColumn>
+              ))}
+            </div>
+            <DragOverlay>
+              {activeIssue ? <KanbanCardPreview issue={activeIssue} /> : null}
+            </DragOverlay>
+          </DndContext>
+        </>
+      )}
+    </section>
+  )
+}
+
+function labelOf(id: unknown) {
+  return STATUSES.find((status) => status === id)
+    ? STATUS_LABEL[id as (typeof STATUSES)[number]]
+    : String(id)
+}
+
+function BoardSkeleton() {
+  return (
+    <div className="flex gap-3" aria-busy aria-label="Cargando tablero">
+      {STATUSES.map((status) => (
+        <div
+          key={status}
+          className="flex-1 space-y-2 rounded-xl bg-muted/40 p-2"
+        >
+          <Skeleton className="h-6 w-1/2" />
+          <Skeleton className="h-24 w-full" />
+          <Skeleton className="h-24 w-full" />
+        </div>
+      ))}
+    </div>
+  )
+}

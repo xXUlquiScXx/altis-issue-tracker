@@ -1,5 +1,4 @@
 import { Pencil, Trash2 } from 'lucide-react'
-import type { MouseEvent } from 'react'
 import { Button } from '@/components/ui/button'
 import {
   Table,
@@ -9,6 +8,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { isPlainClick } from '@/lib/click'
 import { formatDate } from '@/lib/format'
 import type { IssueDto, SessionUser } from '@/lib/types'
 import { can } from '@/server/authz'
@@ -22,18 +22,6 @@ interface Props {
   onView: (issue: IssueDto) => void
   onEdit: (issue: IssueDto) => void
   onDelete: (issue: IssueDto) => void
-}
-
-// Clic normal: se navega dentro de la app sin recargar. Con Ctrl, Cmd, Shift o
-// clic central se deja que el navegador abra el enlace en otra pestaña o ventana.
-function isPlainClick(event: MouseEvent) {
-  return (
-    event.button === 0 &&
-    !event.metaKey &&
-    !event.ctrlKey &&
-    !event.shiftKey &&
-    !event.altKey
-  )
 }
 
 export function IssueTable({

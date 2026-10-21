@@ -7,6 +7,9 @@ export const queryKeys = {
     all: ['issues'] as const,
     list: (filters: Partial<ListIssuesInput>) =>
       ['issues', 'list', filters] as const,
+    // El tablero tiene su propia consulta (sin paginar): todas las tarjetas de una vez.
+    board: (filters: Partial<ListIssuesInput>) =>
+      ['issues', 'board', filters] as const,
     detail: (id: string) => ['issues', 'detail', id] as const,
     events: (id: string) => ['issues', 'events', id] as const,
     comments: (id: string) => ['issues', 'comments', id] as const,

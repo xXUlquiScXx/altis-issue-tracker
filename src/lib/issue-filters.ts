@@ -19,6 +19,14 @@ export const issueSearchSchema = z.object({
 
 export type IssueSearch = z.infer<typeof issueSearchSchema>
 
+// El tablero no pagina y no filtra por estado (cada estado es una columna).
+export const boardSearchSchema = issueSearchSchema.omit({
+  page: true,
+  status: true,
+})
+
+export type BoardSearch = z.infer<typeof boardSearchSchema>
+
 // Lo que se le pide al servidor a partir de los filtros de la URL.
 export function toListInput(filters: IssueSearch) {
   return {

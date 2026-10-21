@@ -33,11 +33,15 @@ export function createQueryClient(onUnauthenticated: () => void) {
       },
     }),
     mutationCache: new MutationCache({
-      onError: (error) => {
+      onError: (error, _variables, _context, mutation) => {
+        if (isApiError(error, 'UNAUTHENTICATED')) {
+          handleUnauthenticated()
+          return
+        }
+        // Algunas mutaciones (como mover una tarjeta) muestran su propio aviso.
+        if (mutation.meta?.skipErrorToast) return
         if (!isApiError(error)) {
           toast.error(apiErrorMessage({ code: 'INTERNAL', message: '' }))
-        } else if (error.code === 'UNAUTHENTICATED') {
-          handleUnauthenticated()
         } else if (error.code === 'FORBIDDEN' || error.code === 'INTERNAL') {
           toast.error(apiErrorMessage(error))
         }

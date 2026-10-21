@@ -13,12 +13,20 @@ interface Props {
   users: OrgUser[] | undefined
   onChange: (patch: Partial<IssueSearch>) => void
   onClear: () => void
+  // En el tablero el estado ya es la columna: no hace falta filtrarlo.
+  hideStatus?: boolean
 }
 
 const SEARCH_DELAY_MS = 300
 
 // Cada cambio de filtro vuelve a la página 1 (`page: undefined`).
-export function IssueFilters({ filters, users, onChange, onClear }: Props) {
+export function IssueFilters({
+  filters,
+  users,
+  onChange,
+  onClear,
+  hideStatus = false,
+}: Props) {
   const [text, setText] = useState(filters.q ?? '')
   const debouncedText = useDebouncedValue(text.trim(), SEARCH_DELAY_MS)
   const lastSearch = useRef(filters.q ?? '')
@@ -31,7 +39,13 @@ export function IssueFilters({ filters, users, onChange, onClear }: Props) {
   }, [debouncedText, onChange])
 
   return (
-    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_11rem_9rem_12rem_auto]">
+    <div
+      className={
+        hideStatus
+          ? 'grid gap-2 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_9rem_12rem_auto]'
+          : 'grid gap-2 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_11rem_9rem_12rem_auto]'
+      }
+    >
       <div className="relative sm:col-span-2 lg:col-span-1">
         <Search
           aria-hidden
@@ -47,23 +61,26 @@ export function IssueFilters({ filters, users, onChange, onClear }: Props) {
         />
       </div>
 
-      <NativeSelect
-        aria-label="Filtrar por estado"
-        value={filters.status ?? ''}
-        onChange={(event) =>
-          onChange({
-            status: (event.target.value || undefined) as IssueSearch['status'],
-            page: undefined,
-          })
-        }
-      >
-        <option value="">Todos los estados</option>
-        {STATUSES.map((status) => (
-          <option key={status} value={status}>
-            {STATUS_LABEL[status]}
-          </option>
-        ))}
-      </NativeSelect>
+      {!hideStatus && (
+        <NativeSelect
+          aria-label="Filtrar por estado"
+          value={filters.status ?? ''}
+          onChange={(event) =>
+            onChange({
+              status: (event.target.value ||
+                undefined) as IssueSearch['status'],
+              page: undefined,
+            })
+          }
+        >
+          <option value="">Todos los estados</option>
+          {STATUSES.map((status) => (
+            <option key={status} value={status}>
+              {STATUS_LABEL[status]}
+            </option>
+          ))}
+        </NativeSelect>
+      )}
 
       <NativeSelect
         aria-label="Filtrar por prioridad"
