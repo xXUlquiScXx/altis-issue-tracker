@@ -109,15 +109,15 @@ Seguridad extra opcional: FK compuestas o chequeo en servidor de que `assignee.o
 - 🟢 Commit: `ci: github actions pipeline with postgres service`
 
 ### Fase 5 — Autenticación (~1 h 30) [P0]
-- [ ] `src/server/auth/password.ts`: `hashPassword` / `verifyPassword` con `bcryptjs` (cost 10–12).
-- [ ] `src/server/auth/session.ts`: `signSession({userId, orgId, role})` y `verifySession` con `jose` (HS256, `exp` 1–2 h). Cookie `httpOnly`, `SameSite=Lax`, `Secure` en producción, `Path=/`.
-- [ ] Server functions: `register`, `login`, `logout`, `getMe`.
+- [x] `src/server/auth/password.ts`: `hashPassword` / `verifyPassword` con `bcryptjs` (cost 10–12).
+- [x] `src/server/auth/session.ts`: `signSession({userId, orgId, role})` y `verifySession` con `jose` (HS256, `exp` 1–2 h). Cookie `httpOnly`, `SameSite=Lax`, `Secure` en producción, `Path=/`.
+- [x] Server functions: `register`, `login`, `logout`, `getMe` (en `src/server/auth/functions.ts`; la lógica vive en `service.ts` y la cookie en `cookie.ts`).
   - `register`: valida con zod, email único (normalizado a minúsculas), crea **siempre** `role='member'` en la org `DEMO_ORG_SLUG`. Ignorar cualquier `role`/`orgId` que envíe el cliente.
   - `login`: mensaje genérico ante credenciales inválidas (no revelar si el email existe).
-- [ ] **Rate limit** en `register`/`login` (por IP+email; ventana fija, en memoria). Documentar en README que en serverless es por instancia (trade-off).
-- [ ] Middleware `requireUser` que resuelve el usuario desde la cookie y lanza `UNAUTHENTICATED` si falta o expiró.
-- [ ] Expiración: si el JWT venció → 401 y el cliente redirige a `/login` (re-login simple, permitido por el PDF).
-- [ ] Rutas UI: `/login`, `/register`; guard en rutas protegidas.
+- [x] **Rate limit** en `register`/`login` (por IP+email; ventana fija, en memoria). Documentar en README que en serverless es por instancia (trade-off).
+- [x] Middleware `requireUser` que resuelve el usuario desde la cookie y lanza `UNAUTHENTICATED` si falta o expiró.
+- [x] Expiración: si el JWT venció → 401 y el cliente redirige a `/login` (re-login simple, permitido por el PDF). Verificado: token vencido → 401; sin cookie, el SSR redirige 307 a `/login`.
+- [ ] Rutas UI: `/login`, `/register`; guard en rutas protegidas. Hechas (`_authed.tsx` hace de guard); falta la prueba manual en el navegador.
 - 🟢 Commit: `feat(auth): register, login, jwt cookie session`
 
 ### Fase 6 — Autorización + backend de issues (~2 h) [P0]
