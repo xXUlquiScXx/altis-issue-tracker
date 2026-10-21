@@ -230,8 +230,9 @@ Preparar BD de prueba: `TEST_DATABASE_URL` apuntando a un Postgres **aislado** (
 - 🟢 Commit: `test: server, persistence and ui behavior tests`
 
 ### Fase 14 — CI completo (~30 min) [P0]
-- [ ] Confirmar que el pipeline ejecuta TODO (lint, typecheck, migraciones, tests, build) y queda **verde** en el último commit.
-- [ ] Copiar el enlace del run exitoso (para el README).
+- [x] Confirmar que el pipeline ejecuta TODO (lint, typecheck, migraciones, tests, build) y queda **verde** en el último commit. Verificado con la API de GitHub en el run de `d0b5a06`: checkout → pnpm y Node (desde `.nvmrc`) → `install --frozen-lockfile` → lint → typecheck → `db:migrate` (sobre su Postgres 16 temporal) → test → build, todos en `success`, 69 s.
+- [ ] Runner fijado a `ubuntu-24.04` (en vez de `ubuntu-latest`, que GitHub está migrando a Ubuntu 26 desde el 19-oct-2026). Verificar que el siguiente run siga verde tras el push.
+- [ ] Copiar el enlace del run exitoso (para el README): pestaña **Actions** del repo → clic en el run del commit → copiar la URL (`.../actions/runs/<número>`). Debe ser el run del **último commit de código**; como editar el README genera otro commit y otro run, el README llevará además el badge de estado y el enlace a la página del workflow. Último run verde conocido: https://github.com/xXUlquiScXx/altis-issue-tracker/actions/runs/39634227191
 - 🟢 Commit (si hay ajustes): `ci: finalize pipeline`
 
 ### Fase 15 — Despliegue final y verificación E2E (~1 h) [P0]
