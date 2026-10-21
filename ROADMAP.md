@@ -65,19 +65,19 @@ Seguridad extra opcional: FK compuestas o chequeo en servidor de que `assignee.o
 > Tiempos = presupuesto aproximado. Si una fase se pasa del doble, parar y recortar (ver sección 4).
 
 ### Fase 0 — Cuentas y herramientas (~30 min) [P0]
-- [ ] Repo en GitHub (público o con acceso para evaluadores) — nombre sugerido: `altis-issue-tracker`.
-- [ ] Proyecto en **Supabase**: guardar la *database password*. Anotar las dos cadenas de conexión: **Transaction pooler** (puerto 6543, para la app) y **Session pooler / Direct** (puerto 5432, para migraciones).
-- [ ] Cuenta **Vercel** nueva (correo alterno), conectada al repo de GitHub.
-- [ ] **Node 22 LTS** (local: `nvm use 22`), pnpm, git. Docker (opcional, para Postgres local de pruebas).
-- [ ] Fijar la versión de Node en el repo para que local, CI y Vercel coincidan: archivo `.nvmrc` con el contenido `22` y en `package.json` `"engines": { "node": ">=22" }`.
-- 🟢 Commit: ninguno aún.
+- [x] Repo en GitHub (público o con acceso para evaluadores) — nombre sugerido: `altis-issue-tracker`.
+- [x] Proyecto en **Supabase**: guardar la *database password*. Anotar las dos cadenas de conexión: **Transaction pooler** (puerto 6543, para la app) y **Session pooler / Direct** (puerto 5432, para migraciones).
+- [x] Cuenta **Vercel** nueva (correo alterno), conectada a GitHub (el import del repo se hace en la fase 3, cuando exista la app).
+- [x] **Node 22 LTS** (local: `nvm use 22`), pnpm, git. Docker (opcional, para Postgres local de pruebas): no instalado; se decide en la fase 13.
+- [x] Fijar la versión de Node en el repo para que local, CI y Vercel coincidan: archivo `.nvmrc` con el contenido `22` (hecho). El `"engines": { "node": ">=22" }` de `package.json` se agrega en la fase 1.
+- 🟢 Commit: `chore: pin node version to 22` (solo `.nvmrc`)
 
 ### Fase 1 — Scaffold (~45 min) [P0]
-- [ ] Crear proyecto TanStack Start + TS (seguir la guía oficial actual de "Getting Started").
-- [ ] Instalar: tailwind, shadcn/ui, `@tanstack/react-query`, `zod`, `drizzle-orm`, `postgres` (driver), `drizzle-kit`, `bcryptjs`, `jose`, `sonner`, `@dnd-kit/core`, `react-markdown`, `remark-gfm`, `vitest`, `@testing-library/react`, `@testing-library/user-event`, `happy-dom`, eslint + prettier.
-- [ ] Scripts en `package.json`: `dev`, `build`, `lint`, `typecheck`, `test`, `db:generate`, `db:migrate`, `db:seed`, `db:reset:test` (ver fase 2).
-- [ ] `.env.example` (sin secretos reales) con: `DATABASE_URL`, `DATABASE_URL_MIGRATE`, `TEST_DATABASE_URL`, `JWT_SECRET`, `DEMO_ORG_SLUG`, `APP_ORIGIN`.
-- [ ] `.gitignore` incluye `.env*` (excepto `.env.example`), `node_modules`, `dist`, `.output`, `.vercel`.
+- [x] Crear proyecto TanStack Start + TS (seguir la guía oficial actual de "Getting Started"). Hecho con la guía "build from scratch" (sin CLI interactivo) + `nitro` para Vercel.
+- [x] Instalar: tailwind, shadcn/ui, `@tanstack/react-query`, `zod`, `drizzle-orm`, `postgres` (driver), `drizzle-kit`, `bcryptjs`, `jose`, `sonner`, `@dnd-kit/core`, `react-markdown`, `remark-gfm`, `vitest`, `@testing-library/react`, `@testing-library/user-event`, `happy-dom`, eslint + prettier.
+- [x] Scripts en `package.json`: `dev`, `build`, `lint`, `typecheck`, `test`, `db:generate`, `db:migrate`, `db:seed`, `db:reset:test` (ver fase 2; los `db:*` apuntan a archivos que se crean en esa fase). También `engines` (node >=22).
+- [x] `.env.example` (sin secretos reales) con: `DATABASE_URL`, `DATABASE_URL_MIGRATE`, `TEST_DATABASE_URL`, `JWT_SECRET`, `DEMO_ORG_SLUG`, `APP_ORIGIN`.
+- [x] `.gitignore` incluye `.env*` (excepto `.env.example`), `node_modules`, `dist`, `.output`, `.vercel`.
 - 🟢 Commit: `chore: scaffold tanstack start app`
 
 ### Fase 2 — Base de datos con Drizzle (~1 h 15) [P0]
