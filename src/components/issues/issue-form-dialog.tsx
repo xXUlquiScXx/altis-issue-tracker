@@ -1,4 +1,4 @@
-import { useState, type SubmitEvent } from 'react'
+import { useState, type FocusEvent, type SubmitEvent } from 'react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import {
@@ -15,6 +15,7 @@ import { NativeSelect } from '@/components/ui/native-select'
 import { Textarea } from '@/components/ui/textarea'
 import { useIssueMutations } from '@/hooks/use-issue-mutations'
 import { useOrgUsers } from '@/hooks/use-org-users'
+import { useVisibleAreaStyle } from '@/hooks/use-visible-area'
 import { isApiError } from '@/lib/api'
 import { fieldErrorsFrom } from '@/lib/forms'
 import { PRIORITY_LABEL, STATUS_LABEL } from '@/lib/labels'
@@ -42,9 +43,15 @@ interface Props {
 }
 
 export function IssueFormDialog({ open, onOpenChange, user, issue }: Props) {
+  // En el celular el teclado tapa la pantalla: el diálogo se ajusta a lo visible.
+  const visibleArea = useVisibleAreaStyle()
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90svh] overflow-y-auto sm:max-w-lg">
+      <DialogContent
+        style={visibleArea}
+        className="max-h-[90svh] overflow-y-auto sm:max-w-lg"
+      >
         <DialogHeader>
           <DialogTitle>{issue ? 'Editar issue' : 'Nuevo issue'}</DialogTitle>
           <DialogDescription>
@@ -61,6 +68,16 @@ export function IssueFormDialog({ open, onOpenChange, user, issue }: Props) {
         />
       </DialogContent>
     </Dialog>
+  )
+}
+
+// Al enfocar un campo se espera a que termine de salir el teclado y se lleva el
+// campo al centro del área visible, para no escribir "a ciegas".
+function revealFocusedField(event: FocusEvent<HTMLFormElement>) {
+  const field = event.target as HTMLElement
+  setTimeout(
+    () => field.scrollIntoView?.({ block: 'center', behavior: 'smooth' }),
+    300,
   )
 }
 
@@ -135,7 +152,12 @@ function IssueForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} noValidate className="space-y-4">
+    <form
+      onSubmit={handleSubmit}
+      onFocus={revealFocusedField}
+      noValidate
+      className="space-y-4"
+    >
       <div className="space-y-2">
         <Label htmlFor="title">Título</Label>
         <Input

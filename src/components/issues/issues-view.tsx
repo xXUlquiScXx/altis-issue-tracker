@@ -59,6 +59,10 @@ export function IssuesView({ user, filters, onFiltersChange }: Props) {
     onFiltersChange(NO_FILTERS)
   }, [onFiltersChange])
 
+  // La página 1 no se escribe en la URL (es la de por defecto).
+  const changePage = (page: number) =>
+    onFiltersChange({ page: page > 1 ? page : undefined })
+
   // Un member solo crea issues para sí mismo, y eso `can` lo permite.
   const canCreate = can(user, 'issue:create', {
     orgId: user.orgId,
@@ -115,6 +119,14 @@ export function IssuesView({ user, filters, onFiltersChange }: Props) {
           aria-busy={isPlaceholderData}
         >
           <div className="space-y-3">
+            {/* Dos barras: así no hay que bajar hasta el final para cambiar de página. */}
+            <Pagination
+              label="Paginación superior"
+              page={data.page}
+              pageSize={data.pageSize}
+              total={data.total}
+              onPageChange={changePage}
+            />
             <IssueTable
               issues={data.items}
               user={user}
@@ -122,12 +134,11 @@ export function IssuesView({ user, filters, onFiltersChange }: Props) {
               onDelete={setIssueToDelete}
             />
             <Pagination
+              label="Paginación inferior"
               page={data.page}
               pageSize={data.pageSize}
               total={data.total}
-              onPageChange={(page) =>
-                onFiltersChange({ page: page > 1 ? page : undefined })
-              }
+              onPageChange={changePage}
             />
           </div>
         </div>

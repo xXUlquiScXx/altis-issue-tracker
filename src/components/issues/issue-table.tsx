@@ -8,6 +8,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { formatDate } from '@/lib/format'
 import type { IssueDto, SessionUser } from '@/lib/types'
 import { can } from '@/server/authz'
 import { PriorityBadge, StatusBadge } from './issue-badges'
@@ -18,12 +19,6 @@ interface Props {
   onEdit: (issue: IssueDto) => void
   onDelete: (issue: IssueDto) => void
 }
-
-const dateFormat = new Intl.DateTimeFormat('es-CO', {
-  day: 'numeric',
-  month: 'short',
-  year: 'numeric',
-})
 
 export function IssueTable({ issues, user, onEdit, onDelete }: Props) {
   return (
@@ -63,6 +58,10 @@ export function IssueTable({ issues, user, onEdit, onDelete }: Props) {
                       {issue.assigneeName ?? 'Sin asignar'}
                     </span>
                   </div>
+                  {/* La columna de fecha solo cabe en pantallas grandes: abajo se pliega. */}
+                  <p className="mt-1.5 text-xs text-muted-foreground lg:hidden">
+                    Actualizado {formatDate(issue.updatedAt)}
+                  </p>
                 </TableCell>
                 <TableCell className="hidden md:table-cell">
                   <StatusBadge status={issue.status} />
@@ -76,7 +75,7 @@ export function IssueTable({ issues, user, onEdit, onDelete }: Props) {
                   )}
                 </TableCell>
                 <TableCell className="hidden text-muted-foreground lg:table-cell">
-                  {dateFormat.format(issue.updatedAt)}
+                  {formatDate(issue.updatedAt)}
                 </TableCell>
                 <TableCell className="text-right">
                   <div className="flex justify-end gap-1">

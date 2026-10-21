@@ -10,6 +10,7 @@ import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { IssuesView } from '@/components/issues/issues-view'
+import { formatDate } from '@/lib/format'
 import type { IssueSearch } from '@/lib/issue-filters'
 import type { IssueDto, IssuePage, SessionUser } from '@/lib/types'
 
@@ -136,7 +137,7 @@ describe('issue list: filters, search and pagination', () => {
     renderView()
     expect(await screen.findByText('Issue 01')).toBeTruthy()
     expect(lastRequest()).toMatchObject({ page: 1, pageSize: 20 })
-    expect(screen.getByText(/Página 1 de 3 · 45 issues/)).toBeTruthy()
+    expect(screen.getAllByText(/Página 1 de 3 · 45 issues/)).toHaveLength(2)
     expect(screen.queryByText('Issue 21')).toBeNull()
   })
 
@@ -156,7 +157,7 @@ describe('issue list: filters, search and pagination', () => {
     // Issue 01 es "todo": ya no debe estar; Issue 03 es "done".
     await waitFor(() => expect(screen.queryByText('Issue 01')).toBeNull())
     expect(await screen.findByText('Issue 03')).toBeTruthy()
-    expect(screen.getByText(/Página 1 de 1 · 15 issues/)).toBeTruthy()
+    expect(screen.getAllByText(/Página 1 de 1 · 15 issues/)).toHaveLength(2)
   })
 
   it('asks for page 2 on "Siguiente" and goes back to page 1 when a filter changes', async () => {
@@ -164,10 +165,12 @@ describe('issue list: filters, search and pagination', () => {
     renderView()
     await screen.findByText('Issue 01')
 
-    await user.click(screen.getByRole('button', { name: /Siguiente/ }))
+    await user.click(
+      screen.getAllByRole('button', { name: 'Página siguiente' })[0]!,
+    )
     await waitFor(() => expect(lastRequest()).toMatchObject({ page: 2 }))
     expect(await screen.findByText('Issue 21')).toBeTruthy()
-    expect(screen.getByText(/Página 2 de 3/)).toBeTruthy()
+    expect(screen.getAllByText(/Página 2 de 3/)).toHaveLength(2)
 
     await user.selectOptions(
       screen.getByLabelText('Filtrar por prioridad'),
@@ -176,6 +179,35 @@ describe('issue list: filters, search and pagination', () => {
     await waitFor(() =>
       expect(lastRequest()).toMatchObject({ priority: 'high', page: 1 }),
     )
+  })
+
+  it('offers page controls above and below the list, and both work', async () => {
+    const user = userEvent.setup()
+    renderView()
+    await screen.findByText('Issue 01')
+    expect(
+      screen.getAllByRole('navigation', { name: /^Paginación/ }),
+    ).toHaveLength(2)
+
+    // La barra de arriba (la que se alcanza sin hacer scroll) avanza...
+    await user.click(
+      screen.getAllByRole('button', { name: 'Página siguiente' })[0]!,
+    )
+    expect(await screen.findByText('Issue 21')).toBeTruthy()
+
+    // ...y la de abajo retrocede.
+    await user.click(
+      screen.getAllByRole('button', { name: 'Página anterior' })[1]!,
+    )
+    await waitFor(() => expect(lastRequest()).toMatchObject({ page: 1 }))
+    expect(await screen.findByText('Issue 01')).toBeTruthy()
+  })
+
+  it('shows the updated date under the title, so small screens do not lose it', async () => {
+    renderView()
+    await screen.findByText('Issue 01')
+    const expected = `Actualizado ${formatDate(new Date(2026, 9, 1))}`
+    expect(screen.getAllByText(expected)).toHaveLength(20)
   })
 
   it('filters by assignee, including "Sin asignar"', async () => {
@@ -190,7 +222,9 @@ describe('issue list: filters, search and pagination', () => {
     await waitFor(() =>
       expect(lastRequest()).toMatchObject({ assignee: 'unassigned' }),
     )
-    expect(await screen.findByText(/Página 1 de 1 · 9 issues/)).toBeTruthy()
+    expect(
+      (await screen.findAllByText(/Página 1 de 1 · 9 issues/)).length,
+    ).toBe(2)
   })
 
   it('searches only after the user stops typing', async () => {

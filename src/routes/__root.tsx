@@ -17,7 +17,12 @@ export const Route = createRootRoute({
   head: () => ({
     meta: [
       { charSet: 'utf-8' },
-      { name: 'viewport', content: 'width=device-width, initial-scale=1' },
+      {
+        name: 'viewport',
+        // resizes-content: en Android, el teclado encoge la página en vez de taparla.
+        content:
+          'width=device-width, initial-scale=1, interactive-widget=resizes-content',
+      },
       { title: 'Issue Tracker' },
     ],
     links: [{ rel: 'stylesheet', href: appCss }],
