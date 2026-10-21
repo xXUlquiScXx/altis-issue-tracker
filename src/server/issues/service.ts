@@ -1,14 +1,30 @@
-import { and, count, desc, eq, ilike, isNull, or } from 'drizzle-orm'
+import {
+  and,
+  asc,
+  count,
+  desc,
+  eq,
+  ilike,
+  inArray,
+  isNull,
+  or,
+} from 'drizzle-orm'
 import { alias } from 'drizzle-orm/pg-core'
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js'
 import { db } from '@/db'
-import { issues, users } from '@/db/schema'
+import { issueEvents, issues, users } from '@/db/schema'
 import type {
   CreateIssueInput,
   ListIssuesInput,
   UpdateIssueInput,
 } from '@/lib/schemas'
-import type { IssueDto, IssuePage, OrgUser, SessionUser } from '@/lib/types'
+import type {
+  IssueDto,
+  IssueEventDto,
+  IssuePage,
+  OrgUser,
+  SessionUser,
+} from '@/lib/types'
 import { can } from '../authz'
 import { AppError } from '../errors'
 
@@ -130,22 +146,79 @@ export async function createIssueForUser(
   }
   if (assigneeId) await assertUserInOrg(assigneeId, user.orgId)
 
-  const [created] = await db
-    .insert(issues)
-    .values({
-      orgId: user.orgId,
-      title: input.title,
-      description: normalizeDescription(input.description),
-      status: input.status,
-      priority: input.priority,
-      assigneeId,
-      createdBy: user.id,
-      labels: input.labels,
-    })
-    .returning({ id: issues.id })
-  if (!created) throw new Error('Issue insert failed')
+  // Issue y evento "created" se guardan juntos: o quedan los dos o ninguno.
+  return db.transaction(async (tx) => {
+    const now = new Date()
+    const [created] = await tx
+      .insert(issues)
+      .values({
+        orgId: user.orgId,
+        title: input.title,
+        description: normalizeDescription(input.description),
+        status: input.status,
+        priority: input.priority,
+        assigneeId,
+        createdBy: user.id,
+        labels: input.labels,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .returning({ id: issues.id })
+    if (!created) throw new Error('Issue insert failed')
 
-  return getIssueForUser(user, created.id)
+    await tx.insert(issueEvents).values({
+      issueId: created.id,
+      orgId: user.orgId,
+      actorId: user.id,
+      type: 'created',
+      createdAt: now,
+    })
+
+    return getIssueForUser(user, created.id, tx)
+  })
+}
+
+// Un evento por cada campo de seguimiento (status, priority, assignee) que cambió.
+// Cambiar título, descripción o labels actualiza el issue pero no genera eventos.
+function buildChangeEvents(
+  current: typeof issues.$inferSelect,
+  changes: Partial<typeof issues.$inferInsert>,
+  actorId: string,
+  now: Date,
+): (typeof issueEvents.$inferInsert)[] {
+  const base = {
+    issueId: current.id,
+    orgId: current.orgId,
+    actorId,
+    createdAt: now,
+  }
+  const events: (typeof issueEvents.$inferInsert)[] = []
+  if (changes.status) {
+    events.push({
+      ...base,
+      type: 'status_changed',
+      fromValue: current.status,
+      toValue: changes.status,
+    })
+  }
+  if (changes.priority) {
+    events.push({
+      ...base,
+      type: 'priority_changed',
+      fromValue: current.priority,
+      toValue: changes.priority,
+    })
+  }
+  // `in` porque desasignar deja assigneeId en null, que sí es un cambio.
+  if ('assigneeId' in changes) {
+    events.push({
+      ...base,
+      type: 'assignee_changed',
+      fromValue: current.assigneeId,
+      toValue: changes.assigneeId ?? null,
+    })
+  }
+  return events
 }
 
 function sameLabels(a: string[], b: string[]) {
@@ -157,7 +230,8 @@ export async function updateIssueForUser(
   input: UpdateIssueInput,
 ): Promise<IssueDto> {
   // Transacción + FOR UPDATE: nadie más modifica la fila mientras la evaluamos.
-  // Si algo lanza un error, no se escribe nada.
+  // El cambio y sus eventos van en la misma transacción. Si algo lanza un
+  // error (permiso, validación o fallo al guardar el evento), no se escribe nada.
   return db.transaction(async (tx) => {
     const [current] = await tx
       .select()
@@ -203,10 +277,14 @@ export async function updateIssueForUser(
     }
 
     if (Object.keys(changes).length > 0) {
+      const now = new Date()
       await tx
         .update(issues)
-        .set({ ...changes, updatedAt: new Date() })
+        .set({ ...changes, updatedAt: now })
         .where(eq(issues.id, current.id))
+
+      const events = buildChangeEvents(current, changes, user.id, now)
+      if (events.length > 0) await tx.insert(issueEvents).values(events)
     }
 
     return getIssueForUser(user, current.id, tx)
@@ -239,4 +317,61 @@ export async function listUsersInOrg(user: SessionUser): Promise<OrgUser[]> {
     .from(users)
     .where(eq(users.orgId, user.orgId))
     .orderBy(users.name)
+}
+
+// Historial de un issue, del más antiguo al más nuevo. Solo lectura: no existe
+// ninguna función para editar o borrar eventos.
+export async function listEventsForIssue(
+  user: SessionUser,
+  issueId: string,
+): Promise<IssueEventDto[]> {
+  // Si el issue es de otra org, responde NOT_FOUND igual que getIssue.
+  await getIssueForUser(user, issueId)
+
+  const rows = await db
+    .select({
+      id: issueEvents.id,
+      type: issueEvents.type,
+      fromValue: issueEvents.fromValue,
+      toValue: issueEvents.toValue,
+      actorId: issueEvents.actorId,
+      actorName: users.name,
+      createdAt: issueEvents.createdAt,
+    })
+    .from(issueEvents)
+    .innerJoin(users, eq(users.id, issueEvents.actorId))
+    .where(
+      and(eq(issueEvents.issueId, issueId), eq(issueEvents.orgId, user.orgId)),
+    )
+    // Los eventos de un mismo cambio comparten hora; el tipo desempata.
+    .orderBy(asc(issueEvents.createdAt), asc(issueEvents.type))
+
+  // En assignee_changed los valores son ids de usuario: se traducen a nombres.
+  const assigneeIds = new Set<string>()
+  for (const row of rows) {
+    if (row.type !== 'assignee_changed') continue
+    if (row.fromValue) assigneeIds.add(row.fromValue)
+    if (row.toValue) assigneeIds.add(row.toValue)
+  }
+  const names = new Map<string, string>()
+  if (assigneeIds.size > 0) {
+    const found = await db
+      .select({ id: users.id, name: users.name })
+      .from(users)
+      .where(
+        and(inArray(users.id, [...assigneeIds]), eq(users.orgId, user.orgId)),
+      )
+    for (const person of found) names.set(person.id, person.name)
+  }
+
+  return rows.map((row) => {
+    const isAssignee = row.type === 'assignee_changed'
+    return {
+      ...row,
+      fromName:
+        isAssignee && row.fromValue ? (names.get(row.fromValue) ?? null) : null,
+      toName:
+        isAssignee && row.toValue ? (names.get(row.toValue) ?? null) : null,
+    }
+  })
 }

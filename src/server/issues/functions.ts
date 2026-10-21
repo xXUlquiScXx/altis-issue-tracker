@@ -11,6 +11,7 @@ import {
   createIssueForUser,
   deleteIssueForUser,
   getIssueForUser,
+  listEventsForIssue,
   listUsersInOrg,
   searchIssues,
   updateIssueForUser,
@@ -47,3 +48,9 @@ export const deleteIssue = createServerFn({ method: 'POST' })
 export const listOrgUsers = createServerFn()
   .middleware([requireUser])
   .handler(({ context }) => listUsersInOrg(context.user))
+
+// Historial de solo lectura. No hay funciones para editar ni borrar eventos.
+export const listIssueEvents = createServerFn()
+  .middleware([requireUser])
+  .validator(validate(issueIdSchema))
+  .handler(({ data, context }) => listEventsForIssue(context.user, data.id))

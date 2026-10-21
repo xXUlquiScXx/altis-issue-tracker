@@ -8,17 +8,12 @@ import {
   timestamp,
   uuid,
 } from 'drizzle-orm/pg-core'
-import { PRIORITIES, ROLES, STATUSES } from '../lib/types'
+import { EVENT_TYPES, PRIORITIES, ROLES, STATUSES } from '../lib/types'
 
 export const roleEnum = pgEnum('role', ROLES)
 export const statusEnum = pgEnum('status', STATUSES)
 export const priorityEnum = pgEnum('priority', PRIORITIES)
-export const eventTypeEnum = pgEnum('event_type', [
-  'created',
-  'status_changed',
-  'priority_changed',
-  'assignee_changed',
-])
+export const eventTypeEnum = pgEnum('event_type', EVENT_TYPES)
 
 export const organizations = pgTable('organizations', {
   id: uuid().primaryKey().defaultRandom(),
