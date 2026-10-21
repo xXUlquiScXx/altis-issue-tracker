@@ -50,6 +50,24 @@ describe('describeEvent', () => {
     )
   })
 
+  it('describes adding, replacing and clearing labels', () => {
+    expect(
+      describeEvent(
+        event({ type: 'labels_changed', fromValue: null, toValue: 'bug, ui' }),
+      ),
+    ).toBe('agregó las etiquetas «bug, ui»')
+    expect(
+      describeEvent(
+        event({ type: 'labels_changed', fromValue: 'bug, ui', toValue: 'bug' }),
+      ),
+    ).toBe('cambió las etiquetas de «bug, ui» a «bug»')
+    expect(
+      describeEvent(
+        event({ type: 'labels_changed', fromValue: 'bug', toValue: null }),
+      ),
+    ).toBe('quitó todas las etiquetas')
+  })
+
   it('describes assigning, unassigning and reassigning with names', () => {
     expect(
       describeEvent(

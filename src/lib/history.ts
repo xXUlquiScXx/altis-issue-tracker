@@ -22,6 +22,10 @@ export function describeEvent(event: IssueEventDto): string {
       return `cambió el título de «${event.fromValue ?? '—'}» a «${event.toValue ?? '—'}»`
     case 'description_changed':
       return 'cambió la descripción'
+    case 'labels_changed':
+      if (!event.fromValue) return `agregó las etiquetas «${event.toValue}»`
+      if (!event.toValue) return 'quitó todas las etiquetas'
+      return `cambió las etiquetas de «${event.fromValue}» a «${event.toValue}»`
     case 'assignee_changed': {
       // Los nombres pueden faltar si la persona ya no está en la organización.
       const from = event.fromName ?? 'otra persona'

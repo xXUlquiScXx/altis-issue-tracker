@@ -170,13 +170,14 @@ describe.skipIf(!hasTestDb)('issue history', () => {
       }
     })
 
-    it('records title and description together with the other tracked changes', async () => {
+    it('records every tracked change of one edit, in a stable order', async () => {
       const issue = await create(f.acmeAdmin, { title: 'A' })
       await update(f.acmeAdmin, {
         id: issue.id,
         title: 'B',
         description: 'algo',
         status: 'done',
+        labels: ['bug'],
       })
       const types = (await events(f.acmeAdmin, issue.id)).map((e) => e.type)
       expect(types).toEqual([
@@ -184,6 +185,7 @@ describe.skipIf(!hasTestDb)('issue history', () => {
         'status_changed',
         'title_changed',
         'description_changed',
+        'labels_changed',
       ])
     })
 
@@ -200,13 +202,28 @@ describe.skipIf(!hasTestDb)('issue history', () => {
       expect(await events(f.ana, issue.id)).toHaveLength(1)
     })
 
-    it('does not create events for labels', async () => {
+    it('records label changes: adding, replacing and clearing', async () => {
       const issue = await create(f.acmeAdmin)
-      const updated = await update(f.acmeAdmin, {
-        id: issue.id,
-        labels: ['bug'],
-      })
-      expect(updated.labels).toEqual(['bug'])
+      await update(f.acmeAdmin, { id: issue.id, labels: ['bug', 'ui'] })
+      await update(f.acmeAdmin, { id: issue.id, labels: ['bug'] })
+      await update(f.acmeAdmin, { id: issue.id, labels: [] })
+
+      const history = (await events(f.acmeAdmin, issue.id)).slice(1)
+      expect(history.map((e) => e.type)).toEqual([
+        'labels_changed',
+        'labels_changed',
+        'labels_changed',
+      ])
+      expect(history.map((e) => [e.fromValue, e.toValue])).toEqual([
+        [null, 'bug, ui'],
+        ['bug, ui', 'bug'],
+        ['bug', null],
+      ])
+    })
+
+    it('does not count a different order of the same labels as a change', async () => {
+      const issue = await create(f.acmeAdmin, { labels: ['bug', 'ui'] })
+      await update(f.acmeAdmin, { id: issue.id, labels: ['ui', 'bug'] })
       expect(await events(f.acmeAdmin, issue.id)).toHaveLength(1)
     })
 

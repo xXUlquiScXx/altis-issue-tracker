@@ -15,6 +15,13 @@
       "when": 1792589179300,
       "tag": "0001_ordinary_millenium_guard",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792589968133,
+      "tag": "0002_organic_nova",
+      "breakpoints": true
     }
   ]
 }

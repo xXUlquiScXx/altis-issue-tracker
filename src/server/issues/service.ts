@@ -175,8 +175,13 @@ export async function createIssueForUser(
   })
 }
 
-// Un evento por cada campo de seguimiento (status, priority, assignee, título y
-// descripción) que cambió. Las labels actualizan el issue pero no generan evento.
+// Las etiquetas se guardan en el evento como texto: "bug, ui" (o null si no hay).
+function joinLabels(labels: string[]) {
+  return labels.length > 0 ? labels.join(', ') : null
+}
+
+// Un evento por cada campo de seguimiento que cambió: status, priority, assignee,
+// título, descripción y etiquetas.
 function buildChangeEvents(
   current: typeof issues.$inferSelect,
   changes: Partial<typeof issues.$inferInsert>,
@@ -223,6 +228,14 @@ function buildChangeEvents(
       toValue: changes.title,
     })
   }
+  if (changes.labels) {
+    events.push({
+      ...base,
+      type: 'labels_changed',
+      fromValue: joinLabels(current.labels),
+      toValue: joinLabels(changes.labels),
+    })
+  }
   // De la descripción no se guarda el texto (puede ser larguísimo): solo que cambió.
   if ('description' in changes) {
     events.push({ ...base, type: 'description_changed' })
@@ -230,8 +243,13 @@ function buildChangeEvents(
   return events
 }
 
+// Mismas etiquetas aunque vengan en otro orden: reordenarlas no es un cambio.
 function sameLabels(a: string[], b: string[]) {
-  return a.length === b.length && a.every((label, i) => label === b[i])
+  const sortedB = [...b].sort()
+  return (
+    a.length === b.length &&
+    [...a].sort().every((label, i) => label === sortedB[i])
+  )
 }
 
 export async function updateIssueForUser(

@@ -33,7 +33,7 @@ Antes de usar APIs de TanStack Start / Router / Query / Drizzle, **consulta la d
   - `member`: crear issues asignados a sí mismo; editar solo los que tiene asignados (incl. status y priority); **no** reasigna ni borra.
   - Comentarios: solo el autor edita/borra (incluso si otro es admin).
   - El registro crea siempre `member` en la org demo; el cliente no puede elegir rol ni org.
-- **Historial transaccional:** cambio de issue + eventos en la misma `db.transaction`. Eventos solo por cambios efectivos de status/priority/assignee/title/description (y creación); de la descripción no se guarda el texto, solo que cambió. Operación rechazada → cero escrituras y cero eventos. El historial es solo lectura.
+- **Historial transaccional:** cambio de issue + eventos en la misma `db.transaction`. Eventos solo por cambios efectivos de status/priority/assignee/title/description/labels (y creación); de la descripción no se guarda el texto, solo que cambió. Operación rechazada → cero escrituras y cero eventos. El historial es solo lectura.
 - **Errores consistentes** con códigos: `UNAUTHENTICATED` 401, `FORBIDDEN` 403, `NOT_FOUND` 404, `VALIDATION` 400, `RATE_LIMITED` 429, `INTERNAL` 500. Nunca exponer stack traces, SQL ni detalles internos.
 - **Validación** con zod en cliente y servidor (esquemas compartidos). `title` no vacío (trim); defaults `status=todo`, `priority=med`; assignee debe ser de la misma org.
 - Passwords con bcrypt (`bcryptjs`); JWT con expiración (`jose`); cookie `httpOnly`, `SameSite=Lax`, `Secure` en prod; rate limit en login/registro.
