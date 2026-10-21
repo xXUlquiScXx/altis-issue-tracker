@@ -144,6 +144,7 @@ Mejoras de UX del login (pedidas tras la prueba manual):
 - [x] En `updateIssue`: `db.transaction` → leer issue (con `for update`), validar permisos, calcular **diff real**; solo por cada campo de `status`/`priority`/`assignee_id` que **cambió efectivamente** insertar evento (`type`, `from_value`, `to_value`, `actor_id`). Si no hay cambios → no hay eventos. Si se rechaza (permiso/validación) → no hay escritura ni eventos.
 - [x] `listIssueEvents` solo lectura, filtrado por org (en `src/server/issues/`: server function `listIssueEvents`, lógica `listEventsForIssue`). Devuelve nombres del actor y, en cambios de assignee, de las personas. Sin endpoints de editar/borrar eventos.
 - [x] El delete de issue borra en cascada comentarios y eventos.
+- [x] Ampliación posterior (a pedido): también generan evento los cambios efectivos de **título** (guarda el título anterior y el nuevo) y de **descripción** (solo registra que cambió, sin guardar el texto). Las etiquetas siguen sin evento. Requirió la migración `drizzle/0001_*.sql` (agrega `title_changed` y `description_changed` al enum `event_type`).
 - [x] Tests en `tests/server/history.test.ts`, incluido el rollback con un fallo forzado en la BD (trigger que rechaza inserts de eventos). Adelantan la parte de persistencia de la fase 13.
 - 🟢 Commit: `feat(history): transactional activity log`
 
