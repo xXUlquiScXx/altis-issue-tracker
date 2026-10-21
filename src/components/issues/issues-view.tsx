@@ -2,6 +2,7 @@ import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { Plus } from 'lucide-react'
 import { useCallback, useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { RefreshButton } from '@/components/refresh-button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useOrgUsers } from '@/hooks/use-org-users'
 import { api, isApiError } from '@/lib/api'
@@ -48,13 +49,20 @@ export function IssuesView({
   onViewIssue,
 }: Props) {
   const input = toListInput(filters)
-  const { data, isPending, isError, error, refetch, isPlaceholderData } =
-    useQuery({
-      queryKey: queryKeys.issues.list(input),
-      queryFn: () => api(() => listIssues({ data: input })),
-      // Al cambiar de filtro o página se sigue mostrando lo anterior, atenuado.
-      placeholderData: keepPreviousData,
-    })
+  const {
+    data,
+    isPending,
+    isError,
+    error,
+    refetch,
+    isFetching,
+    isPlaceholderData,
+  } = useQuery({
+    queryKey: queryKeys.issues.list(input),
+    queryFn: () => api(() => listIssues({ data: input })),
+    // Al cambiar de filtro o página se sigue mostrando lo anterior, atenuado.
+    placeholderData: keepPreviousData,
+  })
   const { data: users } = useOrgUsers()
 
   const [form, setForm] = useState<{ open: boolean; issue?: IssueDto }>({
@@ -83,12 +91,19 @@ export function IssuesView({
     <section className="space-y-4">
       <div className="flex items-center justify-between gap-2">
         <h1 className="text-2xl font-bold">Issues</h1>
-        {canCreate && (
-          <Button onClick={() => setForm({ open: true })}>
-            <Plus />
-            Nuevo issue
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          <RefreshButton
+            label="Actualizar lista"
+            isFetching={isFetching}
+            onRefresh={() => void refetch()}
+          />
+          {canCreate && (
+            <Button onClick={() => setForm({ open: true })}>
+              <Plus />
+              Nuevo issue
+            </Button>
+          )}
+        </div>
       </div>
 
       <IssueFilters

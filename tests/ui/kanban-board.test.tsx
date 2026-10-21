@@ -474,3 +474,44 @@ describe('kanban board: opening and filtering', () => {
     expect(screen.queryByText('Todo de Ana')).toBeNull()
   })
 })
+
+describe('kanban board: refresh button', () => {
+  it('picks up changes made by somebody else (a card that was deleted disappears)', async () => {
+    const user = userEvent.setup()
+    renderBoard()
+    await screen.findByText('Todo de Luis')
+
+    // Otra persona borra una tarjeta en otra ventana.
+    rows = rows.filter((issue) => issue.id !== 'b')
+    expect(screen.getByText('Todo de Luis')).toBeTruthy()
+
+    await user.click(screen.getByRole('button', { name: 'Actualizar tablero' }))
+    await waitFor(() => expect(screen.queryByText('Todo de Luis')).toBeNull())
+    expect(column('Por hacer').getByText('Todo de Ana')).toBeTruthy()
+  })
+
+  it('is disabled and spinning while the board is being refreshed', async () => {
+    const user = userEvent.setup()
+    renderBoard()
+    await screen.findByText('Todo de Ana')
+
+    const pending = deferred<IssuePage>()
+    listIssues.mockImplementationOnce((() => pending.promise) as never)
+    const button = screen.getByRole('button', { name: 'Actualizar tablero' })
+    await user.click(button)
+
+    await waitFor(() =>
+      expect((button as HTMLButtonElement).disabled).toBe(true),
+    )
+    expect(button.querySelector('svg')?.getAttribute('class')).toContain(
+      'animate-spin',
+    )
+
+    pending.resolve(
+      await fakeList({ data: { page: 1, pageSize: 100 } as never }),
+    )
+    await waitFor(() =>
+      expect((button as HTMLButtonElement).disabled).toBe(false),
+    )
+  })
+})

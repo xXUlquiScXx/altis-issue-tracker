@@ -532,3 +532,53 @@ describe('issue list: an issue that somebody else already deleted', () => {
     )
   })
 })
+
+describe('issue list: refresh button', () => {
+  it('asks the server again without reloading the page, and shows that it is working', async () => {
+    const user = userEvent.setup()
+    renderView()
+    await screen.findByText('Issue 01')
+    const callsBefore = listIssues.mock.calls.length
+
+    let finish!: (page: IssuePage) => void
+    listIssues.mockImplementationOnce(
+      (() =>
+        new Promise<IssuePage>((resolve) => {
+          finish = resolve
+        })) as never,
+    )
+
+    const button = screen.getByRole('button', { name: 'Actualizar lista' })
+    await user.click(button)
+
+    // Mientras llega la respuesta: se volvió a pedir, y el botón está ocupado.
+    expect(listIssues.mock.calls.length).toBe(callsBefore + 1)
+    await waitFor(() =>
+      expect((button as HTMLButtonElement).disabled).toBe(true),
+    )
+    expect(button.getAttribute('aria-busy')).toBe('true')
+    // Los datos que ya estaban siguen a la vista (no salta a un esqueleto).
+    expect(screen.getByText('Issue 01')).toBeTruthy()
+
+    finish(await fakeServer({ data: { page: 1, pageSize: 20 } as never }))
+    await waitFor(() =>
+      expect((button as HTMLButtonElement).disabled).toBe(false),
+    )
+    expect(button.getAttribute('aria-busy')).toBe('false')
+  })
+
+  it('keeps the current filters and page when refreshing', async () => {
+    const user = userEvent.setup()
+    renderView()
+    await screen.findByText('Issue 01')
+    await user.selectOptions(
+      screen.getByLabelText('Filtrar por estado'),
+      'done',
+    )
+    await waitFor(() => expect(lastRequest()).toMatchObject({ status: 'done' }))
+
+    await user.click(screen.getByRole('button', { name: 'Actualizar lista' }))
+    await waitFor(() => expect(listIssues.mock.calls.length).toBeGreaterThan(2))
+    expect(lastRequest()).toMatchObject({ status: 'done', page: 1 })
+  })
+})

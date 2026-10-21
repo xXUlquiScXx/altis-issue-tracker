@@ -15,6 +15,7 @@ import {
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { useCallback, useState } from 'react'
 import { IssueFilters } from '@/components/issues/issue-filters'
+import { RefreshButton } from '@/components/refresh-button'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useMoveIssue } from '@/hooks/use-move-issue'
@@ -58,7 +59,7 @@ export function KanbanBoard({
   onViewIssue,
 }: Props) {
   const input = toBoardInput(filters)
-  const { data, isPending, isError, error, refetch } = useQuery({
+  const { data, isPending, isError, error, refetch, isFetching } = useQuery({
     queryKey: queryKeys.issues.board(input),
     queryFn: () => api(() => listIssues({ data: input })),
     placeholderData: keepPreviousData,
@@ -115,7 +116,14 @@ export function KanbanBoard({
 
   return (
     <section className="space-y-4">
-      <h1 className="text-2xl font-bold">Kanban</h1>
+      <div className="flex items-center justify-between gap-2">
+        <h1 className="text-2xl font-bold">Kanban</h1>
+        <RefreshButton
+          label="Actualizar tablero"
+          isFetching={isFetching}
+          onRefresh={() => void refetch()}
+        />
+      </div>
 
       <IssueFilters
         key={resetKey}
